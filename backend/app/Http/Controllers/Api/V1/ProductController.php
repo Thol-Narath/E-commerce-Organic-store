@@ -63,7 +63,7 @@ class ProductController extends Controller
             return $this->error('Product not found.', null, 404);
         }
 
-        $product->load(['category:id,name,slug', 'images']);
+        $product->load(['category:id,name,slug', 'primaryImage', 'images']);
 
         return $this->success(new ProductResource($product), 'Product retrieved successfully.');
     }

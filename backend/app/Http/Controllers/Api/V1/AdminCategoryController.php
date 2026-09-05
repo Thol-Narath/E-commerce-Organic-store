@@ -16,23 +16,24 @@ use Illuminate\Support\Str;
 
 class AdminCategoryController extends Controller
 {
-    use ApiResponse, UniqueSlug;
+    use ApiResponse, Paginates, UniqueSlug;
 
     /**
      * List all categories (including inactive).
      */
     public function index(Request $request): JsonResponse
     {
-        $categories = Category::query()
+        $paginator = Category::query()
             ->withCount(['products as products_count' => fn ($q) => $q->withoutTrashed()])
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get();
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-        return $this->success(
-            CategoryResource::collection($categories),
-            'Categories retrieved successfully.'
-        );
+        return $this->success([
+            'items' => CategoryResource::collection($paginator->items()),
+            'pagination' => $this->pagination($paginator),
+        ], 'Categories retrieved successfully.');
     }
 
     /**

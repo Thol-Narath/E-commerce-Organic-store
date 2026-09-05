@@ -29,12 +29,12 @@ class CategoryApiTest extends TestCase
         $active = Category::factory()->create(['status' => 'active']);
         $inactive = Category::factory()->create(['status' => 'inactive']);
 
-        $response = $this->getJson('/api/v1/categories');
+        $response = $this->getJson('/api/v1/categories?per_page=50');
 
         $response->assertStatus(200)
             ->assertJsonPath('success', true);
 
-        $ids = collect($response->json('data'))->pluck('id');
+        $ids = collect($response->json('data.items'))->pluck('id');
         $this->assertContains($active->id, $ids);
         $this->assertNotContains($inactive->id, $ids);
     }
@@ -46,10 +46,10 @@ class CategoryApiTest extends TestCase
         // Inactive product must NOT be counted for the public listing.
         Product::factory()->create(['category_id' => $category->id, 'status' => 'inactive']);
 
-        $response = $this->getJson('/api/v1/categories');
+        $response = $this->getJson('/api/v1/categories?per_page=50');
 
         $response->assertStatus(200);
-        $categoryData = collect($response->json('data'))->firstWhere('id', $category->id);
+        $categoryData = collect($response->json('data.items'))->firstWhere('id', $category->id);
         $this->assertEquals(3, $categoryData['products_count']);
     }
 

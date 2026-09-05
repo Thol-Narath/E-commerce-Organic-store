@@ -12,7 +12,7 @@ trait Paginates
     /**
      * Resolve a safe per-page value, capped to avoid oversized responses.
      */
-    protected function perPage(Request $request, int $default = 12): int
+    protected function perPage(Request $request, int $default = 10): int
     {
         return max(1, min((int) $request->input('per_page', $default), 50));
     }

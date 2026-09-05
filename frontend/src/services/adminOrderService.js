@@ -20,6 +20,11 @@ export const adminOrderService = {
     return data.data;
   },
 
+  async getRevenueTrend(days = 30) {
+    const { data } = await api.get('/admin/dashboard/revenue-trend', { params: { days } });
+    return data.data;
+  },
+
   async updateStatus(id, status, note = '') {
     const { data } = await api.patch(`/admin/orders/${id}/status`, { status, note });
     return data.data;

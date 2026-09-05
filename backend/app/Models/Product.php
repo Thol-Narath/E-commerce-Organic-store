@@ -32,6 +32,7 @@ class Product extends Model
         'unit',
         'weight',
         'min_order_qty',
+        'sales_count',
     ];
 
     protected $casts = [

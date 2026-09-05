@@ -15,12 +15,14 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             CategorySeeder::class,
             ProductSeeder::class,
+            PlaceholderImageSeeder::class,
             AddressSeeder::class,
             CouponSeeder::class,
             OrderSeeder::class,
             ReviewSeeder::class,
             NotificationSeeder::class,
             SettingSeeder::class,
+            ContentSeeder::class,
         ]);
     }
 }

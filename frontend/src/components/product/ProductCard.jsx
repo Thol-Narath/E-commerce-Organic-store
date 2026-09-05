@@ -61,7 +61,7 @@ export default function ProductCard({ product }) {
   };
 
   return (
-    <Card className="h-100 product-card shadow-sm">
+    <Card className="h-100 w-100 product-card shadow-sm">
       <Link to={`/products/${product.slug}`} className="product-card-image-link" aria-label={product.name}>
         <div className="product-card-image">
           <ImageWithFallback src={imageUrl} alt={product.name} className="w-100 h-100" />
@@ -104,44 +104,46 @@ export default function ProductCard({ product }) {
           <InventoryStatusBadge status={product.availability} className="small" />
         </div>
 
-        <div className="d-flex gap-2 mt-3 product-card-actions">
+        <div className="d-flex gap-2 mt-3 product-card-actions flex-column">
+          <div className="d-flex gap-2">
+            <Button
+              variant="success"
+              size="sm"
+              className="flex-grow-1 d-inline-flex align-items-center justify-content-center gap-2"
+              onClick={handleAddToCart}
+              disabled={adding || product.availability === 'out_of_stock'}
+              aria-label={`Add ${product.name} to cart`}
+            >
+              {adding ? (
+                <Spinner animation="border" size="sm" />
+              ) : (
+                <CartIcon size={16} />
+              )}
+              {product.availability === 'out_of_stock' ? 'Out of Stock' : 'Add to Cart'}
+            </Button>
+            <Button
+              variant={wishlisted ? 'outline-danger' : 'outline-secondary'}
+              size="sm"
+              className="wishlist-toggle"
+              onClick={handleToggleWishlist}
+              disabled={wishlistBusy}
+              aria-pressed={wishlisted}
+              aria-label={wishlisted ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
+            >
+              <HeartIcon size={17} fill={wishlisted ? 'currentColor' : 'none'} />
+            </Button>
+          </div>
+
           <Button
-            variant="success"
+            as={Link}
+            to={`/products/${product.slug}`}
+            variant="outline-success"
             size="sm"
-            className="flex-grow-1 d-inline-flex align-items-center justify-content-center gap-2"
-            onClick={handleAddToCart}
-            disabled={adding || product.availability === 'out_of_stock'}
-            aria-label={`Add ${product.name} to cart`}
+            className="w-100"
           >
-            {adding ? (
-              <Spinner animation="border" size="sm" />
-            ) : (
-              <CartIcon size={16} />
-            )}
-            {product.availability === 'out_of_stock' ? 'Out of Stock' : 'Add to Cart'}
-          </Button>
-          <Button
-            variant={wishlisted ? 'outline-danger' : 'outline-secondary'}
-            size="sm"
-            className="wishlist-toggle"
-            onClick={handleToggleWishlist}
-            disabled={wishlistBusy}
-            aria-pressed={wishlisted}
-            aria-label={wishlisted ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
-          >
-            <HeartIcon size={17} fill={wishlisted ? 'currentColor' : 'none'} />
+            View Details
           </Button>
         </div>
-
-        <Button
-          as={Link}
-          to={`/products/${product.slug}`}
-          variant="outline-success"
-          size="sm"
-          className="mt-2 w-100"
-        >
-          View Details
-        </Button>
       </Card.Body>
     </Card>
   );
