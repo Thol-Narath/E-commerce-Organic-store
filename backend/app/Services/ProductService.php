@@ -24,6 +24,7 @@ class ProductService
         'price_high' => ['price', 'desc'],
         'name_asc' => ['name', 'asc'],
         'name_desc' => ['name', 'desc'],
+        'best_selling' => ['sales_count', 'desc'],
     ];
 
     /**
@@ -46,7 +47,7 @@ class ProductService
     public function adminQuery(array $filters): Builder
     {
         return $this->applyFilters(
-            Product::query()->with(['category:id,name,slug', 'images']),
+            Product::query()->with(['category:id,name,slug', 'images', 'primaryImage']),
             $filters,
             false
         );
@@ -60,12 +61,28 @@ class ProductService
     protected function applyFilters(Builder $query, array $filters, bool $forceActive): Builder
     {
         if (! empty($filters['search'])) {
-            $term = $filters['search'];
+            $term = trim((string) $filters['search']);
             $query->where(function (Builder $q) use ($term) {
-                $q->where('name', 'like', "%{$term}%")
-                    ->orWhere('description', 'like', "%{$term}%")
+                // Index-backed term search: the FULLTEXT MATCH branch lets
+                // MySQL/MariaDB drive lookup from the products FULLTEXT index
+                // (products_name_short_description_description_fulltext). The
+                // LIKE clauses are ORed in so substring matches and rows
+                // inserted in the current (uncommitted) transaction still
+                // resolve — InnoDB fulltext indexes do not see uncommitted rows.
+                if (mb_strlen($term) >= 3) {
+                    $q->whereFullText(
+                        ['name', 'short_description', 'description'],
+                        $this->fulltextSearchTerm($term),
+                        ['mode' => 'boolean']
+                    );
+                }
+
+                $q->orWhere('name', 'like', "%{$term}%")
                     ->orWhere('short_description', 'like', "%{$term}%")
-                    ->orWhere('sku', 'like', "%{$term}%");
+                    ->orWhere('description', 'like', "%{$term}%")
+                    // SKU uses its unique index for exact + prefix matches.
+                    ->orWhere('sku', $term)
+                    ->orWhere('sku', 'like', $term.'%');
 
                 if (ctype_digit($term)) {
                     $q->orWhere('id', (int) $term);
@@ -104,7 +121,12 @@ class ProductService
         }
 
         $sort = $filters['sort'] ?? 'newest';
-        if (isset(self::SORT_WHITELIST[$sort])) {
+
+        if ($sort === 'best_selling') {
+            $query->withCount('orderItems as order_items_count')
+                ->orderBy('order_items_count', 'desc')
+                ->orderBy('id', 'desc');
+        } elseif (isset(self::SORT_WHITELIST[$sort])) {
             [$column, $dir] = self::SORT_WHITELIST[$sort];
             $query->orderBy($column, $dir)->orderBy('id', 'desc');
         } else {
@@ -112,6 +134,29 @@ class ProductService
         }
 
         return $query;
+    }
+
+    /**
+     * Build a MySQL FULLTEXT boolean-mode query string from user input.
+     *
+     * Each sanitized word becomes a required prefix match (`+word*`) so the
+     * search is and-ed across words while still using the FULLTEXT index.
+     * Special boolean-mode characters are stripped to avoid injection and
+     * syntax errors.
+     */
+    protected function fulltextSearchTerm(string $term): string
+    {
+        $words = preg_split('/\s+/u', $term) ?: [];
+
+        $parts = [];
+        foreach ($words as $word) {
+            $word = (string) preg_replace('/["+\-><()~*@]/', '', $word);
+            if ($word !== '') {
+                $parts[] = '+'.$word.'*';
+            }
+        }
+
+        return $parts !== [] ? implode(' ', $parts) : $term;
     }
 
     public function createProduct(array $data, ?UploadedFile $primaryImage = null): Product

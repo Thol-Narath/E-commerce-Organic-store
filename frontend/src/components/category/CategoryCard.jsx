@@ -1,33 +1,39 @@
 import { Link } from 'react-router-dom';
-import { Card } from 'react-bootstrap';
-import ImageWithFallback from '../common/ImageWithFallback';
 
 /**
  * Category card linking to the category product page.
- * Shows the icon image when available and a letter avatar otherwise.
+ *
+ * Photo-first vertical layout: real food photo in a circular frame → name →
+ * description → product count. "Coming soon" categories are muted.
  */
 export default function CategoryCard({ category }) {
   const count = Number(category.products_count) || 0;
+  const isComingSoon = count === 0;
+  const iconSrc = category.icon_url || '/category-icons/category.svg';
 
   return (
-    <Card as={Link} to={`/categories/${category.slug}`} className="h-100 text-center text-decoration-none category-card">
-      <Card.Body className="d-flex flex-column align-items-center justify-content-center p-4">
-        <div className="category-avatar mb-3">
-          <ImageWithFallback
-            src={category.icon_url}
-            alt={category.name}
-            className="w-100 h-100"
-            placeholderClassName="category-avatar-fallback d-flex align-items-center justify-content-center"
-          />
-        </div>
-        <Card.Title className="fs-6 mb-1">{category.name}</Card.Title>
-        {category.description && (
-          <Card.Text className="text-muted small mb-2">{category.description}</Card.Text>
-        )}
-        <span className="category-count small">
-          {count > 0 ? `${count} product${count > 1 ? 's' : ''}` : 'Coming soon'}
-        </span>
-      </Card.Body>
-    </Card>
+    <Link
+      to={`/categories/${category.slug}`}
+      className={`category-card-modern h-100 d-flex flex-column align-items-center text-center text-decoration-none p-4${isComingSoon ? ' category-card-coming-soon' : ''}`}
+    >
+      <div className="category-icon-circle">
+        <img
+          src={iconSrc}
+          alt={category.name}
+          className="category-icon-circle-img"
+          loading="lazy"
+        />
+      </div>
+
+      <span className="category-card-title">{category.name}</span>
+
+      {category.description && (
+        <span className="category-card-desc">{category.description}</span>
+      )}
+
+      <span className={`category-badge ${isComingSoon ? 'category-badge-muted' : 'category-badge-active'}`}>
+        {isComingSoon ? 'Coming soon' : `${count} product${count > 1 ? 's' : ''}`}
+      </span>
+    </Link>
   );
 }

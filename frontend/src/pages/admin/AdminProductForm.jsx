@@ -115,7 +115,10 @@ export default function AdminProductForm() {
       } else {
         const data = new FormData();
         Object.entries(payload).forEach(([key, value]) => {
-          if (value !== undefined) data.append(key, value);
+          if (value === undefined || value === null) return;
+          // FormData serializes all values to strings, so send booleans as
+          // 1/0 to satisfy Laravel's boolean validation rule reliably.
+          data.append(key, typeof value === 'boolean' ? (value ? '1' : '0') : value);
         });
         if (primaryImage) data.append('image', primaryImage);
         const res = await adminProductService.create(data);

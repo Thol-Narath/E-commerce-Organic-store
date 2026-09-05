@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Badge, Button, Form, Modal, Spinner, Table } from 'react-bootstrap';
 import { adminCategoryService } from '../../services/adminCategoryService';
 import { normalizeError } from '../../services/api';
+import { ImageIcon } from '../../assets/icons';
 
 const EMPTY = { name: '', description: '', status: 'active', sort_order: 0 };
 
@@ -14,8 +15,10 @@ export default function AdminCategories() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [icon, setIcon] = useState(null);
+  const [iconPreview, setIconPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const iconInputRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,6 +40,7 @@ export default function AdminCategories() {
     setEditing(null);
     setForm(EMPTY);
     setIcon(null);
+    setIconPreview(null);
     setFieldErrors({});
     setShowModal(true);
   };
@@ -50,8 +54,19 @@ export default function AdminCategories() {
       sort_order: category.sort_order || 0,
     });
     setIcon(null);
+    setIconPreview(category.icon_url || category.icon || null);
     setFieldErrors({});
     setShowModal(true);
+  };
+
+  const handleIconChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setIcon(file);
+    if (file) {
+      setIconPreview(URL.createObjectURL(file));
+    } else {
+      setIconPreview(editing?.icon_url || editing?.icon || null);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -127,9 +142,13 @@ export default function AdminCategories() {
                 <tr key={c.id}>
                   <td>
                     <div className="d-flex align-items-center gap-2">
-                      {c.icon_url ? (
-                        <img src={c.icon_url} alt={c.name} width="32" height="32" className="category-cell-icon" />
-                      ) : null}
+                      <span className="category-cell-thumb">
+                        <img
+                          src={c.icon_url || c.icon || '/category-icons/category.svg'}
+                          alt={c.name}
+                          className="category-cell-icon"
+                        />
+                      </span>
                       <span className="fw-semibold">{c.name}</span>
                     </div>
                   </td>
@@ -208,7 +227,51 @@ export default function AdminCategories() {
 
             <Form.Group controlId="cat-icon">
               <Form.Label>Icon</Form.Label>
-              <Form.Control type="file" accept="image/*" onChange={(e) => setIcon(e.target.files[0] || null)} />
+              <div
+                className="border rounded d-flex align-items-center justify-content-center"
+                style={{
+                  height: 120,
+                  backgroundColor: '#f8f9fa',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                }}
+                onClick={() => iconInputRef.current?.click()}
+              >
+                {iconPreview ? (
+                  <img
+                    src={iconPreview}
+                    alt="Icon preview"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '0.5rem' }}
+                  />
+                ) : (
+                  <div className="text-center text-muted">
+                    <ImageIcon size={28} className="mb-1" />
+                    <div className="small fw-semibold">Click to upload</div>
+                    <div className="small opacity-75">or drag and drop</div>
+                  </div>
+                )}
+              </div>
+              <Form.Control
+                ref={iconInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleIconChange}
+                style={{ display: 'none' }}
+              />
+              {iconPreview && (
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    setIcon(null);
+                    setIconPreview(editing?.icon_url || editing?.icon || null);
+                    if (iconInputRef.current) iconInputRef.current.value = '';
+                  }}
+                >
+                  Remove icon
+                </Button>
+              )}
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="gb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#BCAAA4"/>
+      <stop offset="100%" stop-color="#8D6E63"/>
+    </linearGradient>
+  </defs>
+  <!-- Leaf accent -->
+  <path d="M60 56 C52 34 66 20 86 22 C92 30 88 42 76 52 Z" fill="#66BB6A"/>
+  <!-- Handle -->
+  <path d="M66 88 C66 60 110 60 110 88Z" fill="none" stroke="#6D4C41" stroke-width="8"/>
+  <!-- Basket body -->
+  <path d="M52 84 L62 146 C64 156 116 156 118 146 L128 84Z" fill="url(#gb)"/>
+  <!-- Weave lines -->
+  <path d="M56 104 L124 104 M58 124 L122 124 M60 144 L120 144" stroke="#5D4037" stroke-width="3" fill="none" opacity="0.4"/>
+  <path d="M70 84 L74 148 M88 84 L90 148 M104 84 L106 148" stroke="#5D4037" stroke-width="3" fill="none" opacity="0.3"/>
+  <!-- Rim -->
+  <path d="M50 84 L130 84" stroke="#6D4C41" stroke-width="6" stroke-linecap="round"/>
+</svg>

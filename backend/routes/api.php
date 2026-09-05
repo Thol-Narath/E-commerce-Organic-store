@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AdminCategoryController;
 use App\Http\Controllers\Api\V1\AdminOrderController;
 use App\Http\Controllers\Api\V1\AdminProductController;
+use App\Http\Controllers\Api\V1\AdminBannerController;
 use App\Http\Controllers\Api\V1\AddressController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CartController;
@@ -40,6 +41,16 @@ Route::prefix('v1')->group(function () {
     Route::get('products/featured', [ProductController::class, 'featured']);
     Route::get('products', [ProductController::class, 'index']);
     Route::get('products/{product:slug}', [ProductController::class, 'show']);
+
+    // Public content: banners, testimonials, blogs, newsletter
+    Route::get('banners', [\App\Http\Controllers\Api\V1\BannerController::class, 'index']);
+    Route::get('testimonials', [\App\Http\Controllers\Api\V1\TestimonialController::class, 'index']);
+    Route::get('blogs', [\App\Http\Controllers\Api\V1\BlogController::class, 'index']);
+    Route::get('blogs/{slug}', [\App\Http\Controllers\Api\V1\BlogController::class, 'show']);
+    Route::post('newsletter/subscribe', [\App\Http\Controllers\Api\V1\NewsletterController::class, 'subscribe']);
+
+    // Public stats (active product/category counts)
+    Route::get('stats', [\App\Http\Controllers\Api\V1\SettingsController::class, 'stats']);
 
     // Public store information used by the checkout summary (display only).
     Route::get('settings/public', [SettingsController::class, 'publicSettings']);
@@ -147,6 +158,15 @@ Route::prefix('v1')->group(function () {
             Route::post('products/{product}/images', [AdminProductController::class, 'uploadImage']);
             Route::post('products/{product}/images/{image}/primary', [AdminProductController::class, 'setPrimaryImage']);
             Route::delete('products/{product}/images/{image}', [AdminProductController::class, 'deleteImage']);
+
+            // Banner management (CRUD + reorder).
+            Route::get('banners', [AdminBannerController::class, 'index']);
+            Route::post('banners', [AdminBannerController::class, 'store']);
+            Route::get('banners/{banner}', [AdminBannerController::class, 'show']);
+            Route::put('banners/{banner}', [AdminBannerController::class, 'update']);
+            Route::delete('banners/{banner}', [AdminBannerController::class, 'destroy']);
+            Route::patch('banners/{banner}/toggle', [AdminBannerController::class, 'toggle']);
+            Route::post('banners/reorder', [AdminBannerController::class, 'reorder']);
         });
 
         // Admin-scoped routes: admin only.
@@ -162,6 +182,14 @@ Route::prefix('v1')->group(function () {
             Route::patch('orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->whereNumber('order');
             Route::post('orders/{order}/cancel', [AdminOrderController::class, 'cancel'])->whereNumber('order');
             Route::post('orders/{order}/notes', [AdminOrderController::class, 'addNote'])->whereNumber('order');
+
+            // Dashboard: revenue trend over time.
+            Route::get('dashboard/revenue-trend', [SettingsController::class, 'revenueTrend']);
+
+            // Store settings (admin only): logo control.
+            Route::get('settings/logo', [SettingsController::class, 'getLogo']);
+            Route::post('settings/logo', [SettingsController::class, 'uploadLogo']);
+            Route::delete('settings/logo', [SettingsController::class, 'removeLogo']);
         });
 
         // Staff-scoped routes: staff or admin.

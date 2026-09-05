@@ -8,9 +8,9 @@ export const categoryService = {
   /**
    * List active categories (with products_count).
    */
-  async getCategories() {
-    const { data } = await api.get('/categories');
-    return data.data;
+  async getCategories(params = {}) {
+    const { data } = await api.get('/categories', { params });
+    return data.data?.items ?? data.data ?? [];
   },
 
   /**

@@ -38,10 +38,11 @@ export default function CategoriesPage() {
         <div className="row g-3 g-lg-4">
           {Array.from({ length: 8 }, (_, i) => (
             <div key={i} className="col-6 col-md-4 col-lg-3">
-              <div className="category-skeleton card h-100">
-                <div className="skeleton-circle skeleton-shimmer mx-auto mb-3" />
-                <div className="skeleton-line skeleton-shimmer mx-auto mb-2 w-50" />
-                <div className="skeleton-line skeleton-shimmer mx-auto w-25" />
+              <div className="category-card-modern h-100 d-flex flex-column align-items-center text-center p-4">
+                <div className="category-icon-circle skeleton-shimmer mb-3" />
+                <div className="skeleton-line skeleton-shimmer mb-2 w-50" />
+                <div className="skeleton-line skeleton-shimmer w-75 mb-2" />
+                <div className="skeleton-line skeleton-shimmer mt-auto w-25" style={{ height: '1.5rem', borderRadius: '999px' }} />
               </div>
             </div>
           ))}

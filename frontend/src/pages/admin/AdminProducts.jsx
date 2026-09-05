@@ -4,8 +4,13 @@ import { Alert, Badge, Button, Col, Form, Row, Spinner, Table } from 'react-boot
 import { adminProductService } from '../../services/adminProductService';
 import { adminCategoryService } from '../../services/adminCategoryService';
 import { normalizeError } from '../../services/api';
-import InventoryStatusBadge from '../../components/inventory/InventoryStatusBadge';
-import { stockStatusFor } from '../../utils/inventory';
+
+function stockBadgeClass(qty) {
+  if (qty > 50) return 'stock-badge-green';
+  if (qty >= 11) return 'stock-badge-blue';
+  if (qty >= 1) return 'stock-badge-orange';
+  return 'stock-badge-red';
+}
 
 export default function AdminProducts() {
   const [items, setItems] = useState([]);
@@ -122,12 +127,14 @@ export default function AdminProducts() {
               </tr>
             </thead>
             <tbody>
-              {items.map((p) => (
-                <tr key={p.id}>
+              {items.map((p) => {
+                const thumbUrl = p.primary_image?.url || p.images?.[0]?.url || null;
+                return (
+                  <tr key={p.id}>
                   <td>
                     <div className="d-flex align-items-center gap-2">
-                      {p.primary_image?.url ? (
-                        <img src={p.primary_image.url} alt={p.name} width="40" height="40" className="rounded" />
+                      {thumbUrl ? (
+                        <img src={thumbUrl} alt={p.name} width="40" height="40" className="rounded" style={{ objectFit: 'cover' }} />
                       ) : (
                         <div className="table-thumb text-muted">–</div>
                       )}
@@ -140,8 +147,9 @@ export default function AdminProducts() {
                   <td>{p.category?.name || '—'}</td>
                   <td>${p.price}</td>
                   <td>
-                    <div className="fw-semibold">{p.stock_quantity}</div>
-                    <InventoryStatusBadge status={stockStatusFor(p.stock_quantity, p.low_stock_threshold)} className="small" />
+                    <span className={`stock-badge ${stockBadgeClass(p.stock_quantity)}`}>
+                      {p.stock_quantity}
+                    </span>
                   </td>
                   <td>
                     <Badge pill bg={p.status === 'active' ? 'success' : 'secondary'}>
@@ -171,7 +179,8 @@ export default function AdminProducts() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </Table>
         </div>

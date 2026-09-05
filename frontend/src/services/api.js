@@ -20,15 +20,27 @@ api.interceptors.request.use((config) => {
 });
 
 /**
- * Unwrap the { success, message, data } envelope and expose field errors.
+ * Response interceptor: unwrap success envelope, and on error log the real
+ * Axios error to the console so developers can see the actual status / body /
+ * URL. The original Axios error is re-thrown so callers receive the full
+ * response object (not a pre-normalized guess).
  */
 api.interceptors.response.use(
-  (response) => {
-    // Return the enveloped data so callers receive `response.data.data`.
-    return response;
-  },
+  (response) => response,
   (error) => {
-    return Promise.reject(normalizeError(error));
+    // Log the real error during development.
+    if (import.meta.env.DEV) {
+      const resp = error.response;
+      console.error('[API Error]', {
+        url: error.config?.url,
+        method: error.config?.method?.toUpperCase(),
+        status: resp?.status,
+        statusText: resp?.statusText,
+        data: resp?.data,
+        message: error.message,
+      });
+    }
+    return Promise.reject(error);
   }
 );
 
@@ -46,13 +58,22 @@ export function setToken(token) {
 
 /**
  * Convert an Axios error into a consistent shape: { message, errors, status }.
+ *
+ * Call this in catch blocks — NOT in the interceptor — so each caller decides
+ * how to present the error.
  */
 export function normalizeError(error) {
-  const response = error.response;
+  // If this is already a normalized error (has `status` but no `response`),
+  // return it as-is to avoid double-normalization.
+  if (error && typeof error === 'object' && 'status' in error && !error.response) {
+    return error;
+  }
+
+  const response = error?.response;
 
   if (!response) {
     return {
-      message: 'Network error. Please try again.',
+      message: 'Network error. Please check your connection and try again.',
       errors: null,
       status: 0,
     };
@@ -60,7 +81,7 @@ export function normalizeError(error) {
 
   const body = response.data || {};
   return {
-    message: body.message || 'Something went wrong.',
+    message: body.message || `Server error (${response.status}).`,
     errors: body.data && typeof body.data === 'object' ? body.data : null,
     status: response.status,
   };

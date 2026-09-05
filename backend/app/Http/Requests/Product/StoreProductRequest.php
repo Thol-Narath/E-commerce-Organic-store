@@ -32,6 +32,7 @@ class StoreProductRequest extends FormRequest
             'unit' => ['nullable', 'string', 'max:50'],
             'weight' => ['nullable', 'numeric', 'min:0', 'max:99999.999'],
             'min_order_qty' => ['nullable', 'integer', 'min:1'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'images' => ['nullable', 'array', 'max:8'],
             'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];

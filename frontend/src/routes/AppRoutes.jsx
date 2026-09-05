@@ -32,6 +32,8 @@ import AdminOrders from '../pages/admin/AdminOrders';
 import AdminOrderDetail from '../pages/admin/AdminOrderDetail';
 import AdminInventory from '../pages/admin/AdminInventory';
 import AdminInventoryDetail from '../pages/admin/AdminInventoryDetail';
+import AdminBanners from '../pages/admin/AdminBanners';
+import AdminSettings from '../pages/admin/AdminSettings';
 
 export default function AppRoutes() {
   return (
@@ -161,6 +163,8 @@ export default function AppRoutes() {
         <Route path="inventory" element={<AdminInventory />} />
         <Route path="inventory/:id" element={<AdminInventoryDetail />} />
         <Route path="categories" element={<AdminCategories />} />
+        <Route path="banners" element={<AdminBanners />} />
+        <Route path="settings" element={<AdminSettings />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

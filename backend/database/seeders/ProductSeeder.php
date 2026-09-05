@@ -149,7 +149,7 @@ class ProductSeeder extends Seeder
 
             ProductImage::create([
                 'product_id' => $product->id,
-                'image' => 'images/products/'.$product->slug.'.png',
+                'image' => 'images/products/'.$product->slug.'.jpg',
                 'alt_text' => $data['name'],
                 'sort_order' => 1,
                 'is_primary' => true,
