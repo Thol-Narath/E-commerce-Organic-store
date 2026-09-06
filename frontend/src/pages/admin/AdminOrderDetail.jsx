@@ -16,14 +16,16 @@ import { getErrorMessage } from '../../utils/error';
 const NEXT_STATES = {
   pending: ['confirmed'],
   confirmed: ['processing'],
-  processing: ['shipped'],
-  shipped: ['delivered'],
+  processing: ['packed'],
+  packed: ['shipped'],
+  shipped: ['out_for_delivery'],
+  out_for_delivery: ['delivered'],
   delivered: [],
   cancelled: [],
   refunded: [],
 };
 
-const CANCELLABLE = ['pending', 'confirmed', 'processing'];
+const CANCELLABLE = ['pending', 'confirmed', 'processing', 'packed'];
 
 export default function AdminOrderDetail() {
   const { id } = useParams();

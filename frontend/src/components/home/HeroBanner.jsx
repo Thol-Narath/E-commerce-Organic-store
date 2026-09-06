@@ -111,9 +111,9 @@ export default function HeroBanner() {
               <img src={banner.image_url} alt={banner.title} className="hero-banner-photo" />
             ) : (
               <div className="hero-banner-fruit-placeholder" aria-hidden="true">
-                <span className="hero-fruit-emoji">🥦</span>
-                <span className="hero-fruit-emoji hero-fruit-2">🍎</span>
-                <span className="hero-fruit-emoji hero-fruit-3">🥬</span>
+                <span className="hero-fruit-emoji"></span>
+                <span className="hero-fruit-emoji hero-fruit-2"></span>
+                <span className="hero-fruit-emoji hero-fruit-3"></span>
               </div>
             )}
           </div>

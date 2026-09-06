@@ -45,6 +45,7 @@ class SettingsController extends Controller
                 'tagline' => $rows->get('store.tagline')->value ?? '',
                 'currency' => $rows->get('store.currency')->value ?? 'USD',
                 'currency_symbol' => $rows->get('general.currency_symbol')->value ?? '$',
+                'logo_height' => (int) ($rows->get('store.logo_height')->value ?? 42),
                 'logo' => $logoUrl,
             ],
             'shipping' => [
@@ -53,6 +54,39 @@ class SettingsController extends Controller
             ],
             'hero_banner_url' => $heroUrl,
         ]);
+    }
+
+    /**
+     * PUT /api/v1/admin/settings/store-branding — update editable store identity
+     * used across the customer storefront (admin only): display name, tagline
+     * and logo size (in pixels, applied by the header).
+     */
+    public function updateStoreBranding(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'tagline' => ['nullable', 'string', 'max:255'],
+            'logo_height' => ['required', 'integer', 'min:16', 'max:240'],
+        ]);
+
+        $values = [
+            'store.name' => trim($validated['name']),
+            'store.tagline' => trim($validated['tagline'] ?? ''),
+            'store.logo_height' => (string) $validated['logo_height'],
+        ];
+
+        foreach ($values as $key => $value) {
+            Setting::updateOrCreate(
+                ['key' => $key],
+                ['value' => $value, 'group' => 'store', 'is_public' => true]
+            );
+        }
+
+        return $this->success([
+            'name' => $values['store.name'],
+            'tagline' => $values['store.tagline'],
+            'logo_height' => (int) $values['store.logo_height'],
+        ], 'Store branding updated successfully.');
     }
 
     /**

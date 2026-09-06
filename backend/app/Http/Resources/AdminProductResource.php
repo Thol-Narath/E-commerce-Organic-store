@@ -34,6 +34,7 @@ class AdminProductResource extends JsonResource
             'weight' => $this->when($this->weight !== null, $this->weight),
             'min_order_qty' => $this->min_order_qty,
             'is_featured' => $this->is_featured,
+            'is_best_seller' => (bool) $this->is_best_seller,
             'status' => $this->status,
             'primary_image' => $this->whenLoaded('primaryImage', fn () => new ProductImageResource($this->primaryImage)),
             'images' => ProductImageResource::collection($this->whenLoaded('images')),

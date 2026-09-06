@@ -6,6 +6,8 @@ import { useToast } from '../../context/ToastContext';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
+import Breadcrumbs from '../../components/common/Breadcrumbs';
+import AccountLayout from '../../layouts/AccountLayout';
 import usePageTitle from '../../hooks/usePageTitle';
 import { formatPrice } from '../../utils/format';
 import { getErrorMessage } from '../../utils/error';
@@ -20,17 +22,21 @@ export default function WishlistPage() {
 
   if (loading) {
     return (
-      <Container className="py-5">
-        <LoadingSpinner label="Loading your wishlist..." />
-      </Container>
+      <AccountLayout>
+        <Container className="py-5">
+          <LoadingSpinner label="Loading your wishlist..." />
+        </Container>
+      </AccountLayout>
     );
   }
 
   if (error) {
     return (
-      <Container className="py-5">
-        <Alert variant="danger">{error}</Alert>
-      </Container>
+      <AccountLayout>
+        <Container className="py-5">
+          <Alert variant="danger">{error}</Alert>
+        </Container>
+      </AccountLayout>
     );
   }
 
@@ -38,14 +44,14 @@ export default function WishlistPage() {
 
   if (items.length === 0) {
     return (
-      <Container className="py-5">
+      <AccountLayout>
         <EmptyState
           title="Your wishlist is empty"
           message="Save your favourite organic products and come back to them anytime."
-          actionLabel="Discover Products"
+          actionLabel="Continue Shopping"
           actionTo="/shop"
         />
-      </Container>
+      </AccountLayout>
     );
   }
 
@@ -69,14 +75,19 @@ export default function WishlistPage() {
   };
 
   return (
-    <Container className="py-4">
-      <h1 className="h3 mb-4 d-flex align-items-center gap-2">
-        <HeartIcon size={26} className="text-success" />
-        My Wishlist
-        <Badge bg="light" text="dark" pill>
-          {items.length}
-        </Badge>
-      </h1>
+    <AccountLayout>
+      <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'My Account', to: '/account/profile' }, { label: 'Wishlist' }]} />
+
+      <div className="account-page-header">
+        <h1 className="h3 mb-1 d-flex align-items-center gap-2">
+          <HeartIcon size={26} className="text-success" />
+          My Wishlist
+          <Badge bg="light" text="dark" pill>
+            {items.length}
+          </Badge>
+        </h1>
+        <p className="text-muted mb-0">Your saved organic products.</p>
+      </div>
 
       {items.some((item) => !item.available) && (
         <Alert variant="warning" className="d-flex align-items-center gap-2">
@@ -89,39 +100,59 @@ export default function WishlistPage() {
           const product = item.product;
           const available = item.available;
           const busy = isItemBusy(item.id);
+          const hasDiscount =
+            product?.compare_at_price && Number(product.compare_at_price) > Number(product.price);
+          const discountPercentValue = hasDiscount
+            ? Math.round((1 - Number(product.price) / Number(product.compare_at_price)) * 100)
+            : 0;
 
           return (
             <Col xs={12} md={6} lg={4} key={item.id}>
-              <Card className="h-100 shadow-sm wishlist-item">
+              <Card className="h-100 shadow-sm wishlist-item account-card">
                 <Card.Body className="d-flex flex-column">
-                  <div className="d-flex gap-3 mb-3">
-                    <Link to={`/products/${product?.slug}`} className="wishlist-item-image-link flex-shrink-0">
-                      <div className="wishlist-item-image">
+                  <div className="position-relative mb-3">
+                    <Link to={`/products/${product?.slug}`} className="wishlist-item-image-link d-block">
+                      <div className="wishlist-item-image w-100" style={{ height: 180 }}>
                         <ImageWithFallback
                           src={product?.primary_image?.url || product?.images?.[0]?.url}
                           alt={product?.name || 'Product'}
                           className="w-100 h-100"
+                          placeholderClassName="w-100 h-100"
                         />
                       </div>
                     </Link>
-
-                    <div className="flex-grow-1">
-                      <Link to={`/products/${product?.slug}`} className="text-reset text-decoration-none">
-                        <h2 className="h6 mb-1">{product?.name}</h2>
-                      </Link>
-                      {product?.category?.name && (
-                        <span className="text-muted small text-capitalize">{product.category.name}</span>
-                      )}
-                      <p className="mb-0 mt-1 fw-semibold">{formatPrice(product?.price)}</p>
-                      {!available && (
-                        <Badge bg="warning" text="dark" pill className="mt-1">
-                          Unavailable
-                        </Badge>
-                      )}
-                    </div>
+                    {hasDiscount && (
+                      <Badge bg="danger" pill className="position-absolute top-0 start-0 m-2">
+                        −{discountPercentValue}%
+                      </Badge>
+                    )}
                   </div>
 
-                  <div className="d-flex gap-2 mt-auto">
+                  <div className="flex-grow-1">
+                    <Link to={`/products/${product?.slug}`} className="text-reset text-decoration-none">
+                      <h2 className="h6 mb-1">{product?.name}</h2>
+                    </Link>
+                    {product?.category?.name && (
+                      <span className="text-muted small text-capitalize">{product.category.name}</span>
+                    )}
+
+                    <div className="d-flex align-items-center gap-2 mt-2">
+                      <span className="fw-semibold text-success">{formatPrice(product?.price)}</span>
+                      {hasDiscount && (
+                        <span className="text-muted small text-decoration-line-through">
+                          {formatPrice(product?.compare_at_price)}
+                        </span>
+                      )}
+                    </div>
+
+                    {!available ? (
+                      <Badge bg="secondary" pill className="mt-2">Out of stock</Badge>
+                    ) : (
+                      <Badge bg="success" pill className="mt-2">In stock</Badge>
+                    )}
+                  </div>
+
+                  <div className="d-flex gap-2 mt-3">
                     <Button
                       variant="success"
                       size="sm"
@@ -134,7 +165,7 @@ export default function WishlistPage() {
                       ) : (
                         <CartIcon size={16} />
                       )}
-                      Move to Cart
+                      Add to Cart
                     </Button>
                     <Button
                       variant="outline-danger"
@@ -152,6 +183,6 @@ export default function WishlistPage() {
           );
         })}
       </Row>
-    </Container>
+    </AccountLayout>
   );
 }

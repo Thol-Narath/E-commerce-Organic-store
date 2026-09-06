@@ -30,6 +30,7 @@ class ProductFactory extends Factory
             'stock_quantity' => fake()->numberBetween(0, 120),
             'low_stock_threshold' => 5,
             'is_featured' => fake()->boolean(25),
+            'is_best_seller' => fake()->boolean(15),
             'status' => fake()->randomElement(['active', 'active', 'active', 'inactive', 'draft']),
             'unit' => fake()->randomElement(['kg', 'pcs', 'bunch', 'pack', 'litre']),
             'weight' => fake()->randomFloat(3, 0.1, 10),

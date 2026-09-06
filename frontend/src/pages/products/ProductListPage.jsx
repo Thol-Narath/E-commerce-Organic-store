@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { Col, Container, Row } from 'react-bootstrap';
 import PageHeader from '../../components/common/PageHeader';
 import ProductFiltersBar from '../../components/product/ProductFiltersBar';
@@ -13,8 +13,29 @@ import { useProductQuery } from '../../hooks/useProductQuery';
 import { categoryService } from '../../services/categoryService';
 import { getErrorMessage } from '../../utils/error';
 
+const PRESETS = {
+  '/best-sales': {
+    title: 'Best Sales',
+    subtitle: 'Customers\u2019 most-loved organic picks.',
+    filterKey: 'best_seller',
+    filterValue: '1',
+  },
+  '/promotions': {
+    title: 'Promotions',
+    subtitle: 'Organic favourites, now at a discount.',
+    filterKey: 'discounted',
+    filterValue: '1',
+  },
+};
+
 export default function ProductListPage() {
-  usePageTitle('Shop');
+  const location = useLocation();
+  const preset = PRESETS[location.pathname] || null;
+  const title = preset?.title || 'Shop';
+  const subtitle =
+    preset?.subtitle || 'Browse the full range of organic products.';
+
+  usePageTitle(title);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [categories, setCategories] = useState([]);
@@ -35,6 +56,11 @@ export default function ProductListPage() {
     };
   }, []);
 
+  const baseParams = useMemo(
+    () => (preset ? { [preset.filterKey]: preset.filterValue } : {}),
+    [preset]
+  );
+
   const {
     products,
     loading,
@@ -53,14 +79,14 @@ export default function ProductListPage() {
     clearSearch,
     resetFilters,
     hasActiveFilters,
-  } = useProductQuery({ searchParams, setSearchParams });
+  } = useProductQuery({ searchParams, setSearchParams, baseParams });
 
   const items = products?.items || [];
   const pagination = products?.pagination || {};
 
   return (
     <Container className="py-4">
-      <PageHeader title="Shop" subtitle="Browse the full range of organic products." />
+      <PageHeader title={title} subtitle={subtitle} />
 
       {categoriesError && (
         <Row className="mb-3">

@@ -24,6 +24,9 @@ export default function AddressCard({
 
   const cityLine = [address.city, address.state].filter(Boolean).join(', ');
   const postalLine = address.postal_code ? ` ${address.postal_code}` : '';
+  const labelText = address.label
+    ? address.label.charAt(0).toUpperCase() + address.label.slice(1)
+    : '';
 
   return (
     <Card
@@ -35,7 +38,7 @@ export default function AddressCard({
       <Card.Body className="d-flex flex-column gap-2">
         <div className="d-flex align-items-center justify-content-between gap-2">
           <div className="d-flex align-items-center gap-2 flex-wrap">
-            {address.label && <span className="address-label">{address.label}</span>}
+            {labelText && <span className="address-label">{labelText}</span>}
             {address.is_default && (
               <Badge bg="success" pill>
                 Default

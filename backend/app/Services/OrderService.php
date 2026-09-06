@@ -41,6 +41,7 @@ class OrderService
             'items.product' => fn ($q) => $q->withTrashed(),
             'items.product.primaryImage',
             'payments' => fn ($q) => $q->orderByDesc('id'),
+            'statusHistories' => fn ($q) => $q->orderBy('id'),
         ];
     }
 
@@ -176,6 +177,73 @@ class OrderService
             ->where('user_id', $user->id)
             ->where('order_number', $orderNumber)
             ->first();
+    }
+
+    /**
+     * Cancel a customer's own order. Only allowed while the order is still
+     * cancellable (pending, confirmed, processing, or packed).
+     *
+     * Restores reserved stock and marks pending payments as cancelled.
+     * A paid order is never auto-refunded.
+     */
+    public function cancel(User $user, string $orderNumber): ?array
+    {
+        return DB::transaction(function () use ($user, $orderNumber) {
+            $order = Order::where('user_id', $user->id)
+                ->where('order_number', $orderNumber)
+                ->first();
+
+            if (! $order) {
+                return null;
+            }
+
+            $cancellableStatuses = ['pending', 'confirmed', 'processing', 'packed'];
+            if (! in_array($order->status, $cancellableStatuses, true)) {
+                throw ValidationException::withMessages([
+                    'status' => 'This order cannot be cancelled. Only pending, confirmed, processing, or packed orders can be cancelled.',
+                ]);
+            }
+
+            $refundRequired = $order->payment_status === 'paid';
+
+            $inventory = app(InventoryService::class);
+            foreach ($order->items()->get() as $item) {
+                if (! $item->product_id) {
+                    continue;
+                }
+                $product = \App\Models\Product::withTrashed()->whereKey($item->product_id)->first();
+                if (! $product) {
+                    continue;
+                }
+                $inventory->returnStock(
+                    $user,
+                    $product,
+                    (int) $item->quantity,
+                    $order,
+                    'Restocked after customer order cancellation'
+                );
+            }
+
+            $oldStatus = $order->status;
+            $order->update(['status' => 'cancelled']);
+
+            \App\Models\OrderStatusHistory::create([
+                'order_id' => $order->id,
+                'admin_id' => $user->id,
+                'old_status' => $oldStatus,
+                'new_status' => 'cancelled',
+                'note' => 'Cancelled by customer',
+            ]);
+
+            \App\Models\Payment::where('order_id', $order->id)
+                ->where('payment_status', 'pending')
+                ->update(['payment_status' => 'cancelled']);
+
+            return [
+                'order' => $order->fresh($this->eagerLoads()),
+                'refund_required' => $refundRequired,
+            ];
+        });
     }
 
     /**

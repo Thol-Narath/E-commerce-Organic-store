@@ -10,9 +10,10 @@ class SettingSeeder extends Seeder
     public function run(): void
     {
         $settings = [
-            ['key' => 'store.name', 'value' => 'Organic Store', 'group' => 'store', 'is_public' => true],
+            ['key' => 'store.name', 'value' => 'Delicacy Organic', 'group' => 'store', 'is_public' => true],
             ['key' => 'store.tagline', 'value' => 'Fresh organic food delivered to your door', 'group' => 'store', 'is_public' => true],
             ['key' => 'store.currency', 'value' => 'PHP', 'group' => 'store', 'is_public' => true],
+            ['key' => 'store.logo_height', 'value' => '42', 'group' => 'store', 'is_public' => true],
             ['key' => 'store.logo', 'value' => '', 'group' => 'store', 'is_public' => true],
             ['key' => 'hero_banner.url', 'value' => 'images/hero-banner.png', 'group' => 'hero', 'is_public' => true],
             ['key' => 'shipping.flat_rate', 'value' => '5.00', 'group' => 'shipping', 'is_public' => true],

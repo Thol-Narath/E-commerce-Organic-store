@@ -20,4 +20,12 @@ export const orderService = {
     const { data } = await api.get(`/orders/${orderNumber}`);
     return data.data;
   },
+
+  /**
+   * Cancel a customer's own order (only allowed while cancellable).
+   */
+  async cancel(orderNumber) {
+    const { data } = await api.post(`/orders/${orderNumber}/cancel`);
+    return data.data;
+  },
 };

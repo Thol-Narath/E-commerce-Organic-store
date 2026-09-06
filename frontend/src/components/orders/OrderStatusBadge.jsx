@@ -5,7 +5,9 @@ const STATUS_VARIANTS = {
   pending: 'warning',
   confirmed: 'success',
   processing: 'info',
+  packed: 'info',
   shipped: 'primary',
+  out_for_delivery: 'primary',
   delivered: 'success',
   cancelled: 'danger',
   // Payment statuses.
@@ -22,7 +24,9 @@ const STATUS_LABELS = {
   pending: 'Pending',
   confirmed: 'Confirmed',
   processing: 'Processing',
+  packed: 'Packed',
   shipped: 'Shipped',
+  out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
   unpaid: 'Unpaid',
@@ -33,6 +37,20 @@ const STATUS_LABELS = {
   failed: 'Payment failed',
   refunded: 'Refunded',
 };
+
+const ORDER_FLOW = [
+  'pending',
+  'confirmed',
+  'processing',
+  'packed',
+  'shipped',
+  'out_for_delivery',
+  'delivered',
+];
+
+export function getOrderFlowIndex(status) {
+  return ORDER_FLOW.indexOf(status);
+}
 
 export default function OrderStatusBadge({ status, type = 'order', className = '' }) {
   const key = type === 'payment' ? `payment_${status}` : status;

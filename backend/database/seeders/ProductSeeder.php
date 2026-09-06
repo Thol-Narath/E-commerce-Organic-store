@@ -22,6 +22,7 @@ class ProductSeeder extends Seeder
                 'name' => 'Organic Kale', 'category' => 'Fresh Vegetables', 'price' => 2.50, 'cost' => 1.20,
                 'stock' => 60, 'unit' => 'bunch', 'weight' => 0.30, 'desc' => 'Freshly harvested organic kale, rich in vitamins and minerals.',
                 'short' => 'Crisp, nutrient-dense organic kale.',
+                'best_seller' => true,
             ],
             [
                 'name' => 'Organic Spinach', 'category' => 'Fresh Vegetables', 'price' => 2.00, 'cost' => 0.90,
@@ -43,6 +44,7 @@ class ProductSeeder extends Seeder
                 'stock' => 40, 'unit' => 'pcs', 'weight' => 0.30, 'desc' => 'Creamy organic avocados, perfect for toast and salads.',
                 'short' => 'Creamy, ripe organic avocados.',
                 'featured' => true,
+                'best_seller' => true,
             ],
             [
                 'name' => 'Organic Bananas', 'category' => 'Fruits', 'price' => 1.50, 'cost' => 0.60,
@@ -54,6 +56,7 @@ class ProductSeeder extends Seeder
                 'stock' => 30, 'unit' => 'pack', 'weight' => 0.50, 'desc' => 'Juicy organic strawberries, sweet and fragrant.',
                 'short' => 'Juicy, fragrant organic strawberries.',
                 'featured' => true,
+                'best_seller' => true,
             ],
             [
                 'name' => 'Organic Lemons', 'category' => 'Fruits', 'price' => 1.20, 'cost' => 0.50,
@@ -80,6 +83,7 @@ class ProductSeeder extends Seeder
                 'stock' => 60, 'unit' => 'dozen', 'weight' => 0.70, 'desc' => 'Free-range organic eggs from pasture-raised hens.',
                 'short' => 'Organic free-range eggs (dozen).',
                 'featured' => true,
+                'best_seller' => true,
             ],
             [
                 'name' => 'Organic Whole Milk', 'category' => 'Dairy & Eggs', 'price' => 3.20, 'cost' => 1.70,
@@ -91,6 +95,7 @@ class ProductSeeder extends Seeder
                 'stock' => 25, 'unit' => 'loaf', 'weight' => 0.90, 'desc' => 'Artisan organic sourdough, slow-fermented for flavor.',
                 'short' => 'Artisan slow-fermented sourdough.',
                 'featured' => true,
+                'best_seller' => true,
             ],
             [
                 'name' => 'Organic Whole Wheat Bread', 'category' => 'Bakery & Bread', 'price' => 3.50, 'cost' => 1.80,
@@ -107,6 +112,7 @@ class ProductSeeder extends Seeder
                 'stock' => 45, 'unit' => 'kg', 'weight' => 1.00, 'desc' => 'Complete-protein organic quinoa, gluten-free.',
                 'short' => 'Gluten-free complete protein quinoa.',
                 'featured' => true,
+                'best_seller' => true,
             ],
             [
                 'name' => 'Organic Green Tea', 'category' => 'Beverages', 'price' => 4.80, 'cost' => 2.40,
@@ -141,6 +147,7 @@ class ProductSeeder extends Seeder
                 'stock_quantity' => $data['stock'],
                 'low_stock_threshold' => 5,
                 'is_featured' => $data['featured'] ?? false,
+                'is_best_seller' => $data['best_seller'] ?? false,
                 'status' => 'active',
                 'unit' => $data['unit'],
                 'weight' => $data['weight'],

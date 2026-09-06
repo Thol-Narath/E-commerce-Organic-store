@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Col, Container, Form, Row } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
 import { LeafIcon, MailIcon, MapPinIcon, PhoneIcon } from '../../assets/icons';
 import { newsletterService } from '../../services/newsletterService';
+import { settingsService } from '../../services/settingsService';
 
 const CATEGORIES = [
   { name: 'Fresh Vegetables', slug: 'fresh-vegetables' },
@@ -26,6 +27,20 @@ export default function Footer() {
   const [email, setEmail] = useState('');
   const [subscribing, setSubscribing] = useState(false);
   const [subMessage, setSubMessage] = useState('');
+  const [storeName, setStoreName] = useState('Delicacy Organic');
+
+  useEffect(() => {
+    let active = true;
+    settingsService
+      .publicSettings()
+      .then((data) => {
+        if (active && data?.store?.name) setStoreName(data.store.name);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubscribe = async (e) => {
     e.preventDefault();
@@ -54,11 +69,11 @@ export default function Footer() {
             <div className="d-flex align-items-center gap-2 mb-3">
               <LeafIcon size={32} className="footer-brand-icon" />
               <span className="footer-brand" style={{ fontSize: '1.35rem' }}>
-                Delicacy Organic
+                {storeName}
               </span>
             </div>
             <p className="footer-text" style={{ maxWidth: 320 }}>
-              Welcome to Delicacy Organic — your trusted source for 100&nbsp;% organic,
+              Welcome to {storeName} — your trusted source for 100&nbsp;% organic,
               farm-fresh produce. We partner with local growers to bring you wholesome
               fruits, vegetables and pantry staples that taste as good as they make
               you feel.
@@ -187,7 +202,7 @@ export default function Footer() {
       <div className="footer-bottom py-3">
         <Container className="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
           <span>
-            &copy; {new Date().getFullYear()} Delicacy Organic. All rights reserved.
+            &copy; {new Date().getFullYear()} {storeName}. All rights reserved.
           </span>
           <span className="small" style={{ color: '#7a8c7f' }}>
             Crafted with care for a healthier lifestyle.

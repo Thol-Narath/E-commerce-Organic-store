@@ -33,6 +33,7 @@ class UpdateProductRequest extends FormRequest
             'stock_quantity' => ['sometimes', 'required', 'integer', 'min:0'],
             'low_stock_threshold' => ['nullable', 'integer', 'min:0'],
             'is_featured' => ['sometimes', 'boolean'],
+            'is_best_seller' => ['sometimes', 'boolean'],
             'status' => ['sometimes', 'required', Rule::in(['active', 'inactive', 'draft'])],
             'unit' => ['nullable', 'string', 'max:50'],
             'weight' => ['nullable', 'numeric', 'min:0', 'max:99999.999'],

@@ -10,7 +10,7 @@ import { formatPrice, formatDate } from '../../utils/format';
 import { getErrorMessage } from '../../utils/error';
 import { SearchIcon } from '../../assets/icons';
 
-const STATUS_OPTIONS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+const STATUS_OPTIONS = ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'refunded'];
 const PAYMENT_STATUS_OPTIONS = ['unpaid', 'paid', 'refunded', 'failed'];
 const DATE_PERIODS = [
   { value: '', label: 'Any date' },

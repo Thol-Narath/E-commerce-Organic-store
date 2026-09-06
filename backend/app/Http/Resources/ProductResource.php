@@ -31,6 +31,7 @@ class ProductResource extends JsonResource
             'unit' => $this->when($this->unit !== null, $this->unit),
             'availability' => InventoryService::stockStatusFor((int) $this->stock_quantity, (int) $this->low_stock_threshold),
             'is_featured' => $this->is_featured,
+            'is_best_seller' => (bool) $this->is_best_seller,
             'status' => $this->when($this->status !== null, $this->status),
             'primary_image' => $this->whenLoaded('primaryImage', fn () => new ProductImageResource($this->primaryImage)),
             'images' => ProductImageResource::collection($this->whenLoaded('images')),

@@ -6,6 +6,8 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import PageHeader from '../../components/common/PageHeader';
+import Breadcrumbs from '../../components/common/Breadcrumbs';
+import AccountLayout from '../../layouts/AccountLayout';
 import { addressService } from '../../services/addressService';
 import { useToast } from '../../context/ToastContext';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -90,16 +92,10 @@ export default function AddressesPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <Container className="py-5">
-        <LoadingSpinner label="Loading your addresses..." />
-      </Container>
-    );
-  }
-
   return (
-    <Container className="py-4">
+    <AccountLayout>
+      <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'My Account', to: '/account/profile' }, { label: 'Addresses' }]} />
+
       <PageHeader title="My Addresses" subtitle="Manage the shipping addresses used at checkout.">
         <Button variant="success" size="sm" onClick={() => { setEditing(null); setShowForm(true); }}>
           <PlusIcon size={16} className="me-1" />
@@ -109,7 +105,11 @@ export default function AddressesPage() {
 
       {loadError && <Alert variant="danger">{loadError}</Alert>}
 
-      {addresses.length === 0 ? (
+      {loading ? (
+        <Container className="py-4">
+          <LoadingSpinner label="Loading your addresses..." />
+        </Container>
+      ) : addresses.length === 0 ? (
         <EmptyState
           title="No saved addresses"
           message="Add a shipping address so you can check out quickly."
@@ -164,6 +164,6 @@ export default function AddressesPage() {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleting(null)}
       />
-    </Container>
+    </AccountLayout>
   );
 }
