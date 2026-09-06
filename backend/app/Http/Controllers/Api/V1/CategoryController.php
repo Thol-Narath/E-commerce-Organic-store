@@ -22,12 +22,14 @@ class CategoryController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $pagination= $this->pagination(10);
         $categories = Category::query()
             ->active()
             ->withCount(['products as products_count' => fn ($q) => $q->active()])
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get();
+            ->$pagination;
+            // ->get();
 
         return $this->success(
             CategoryResource::collection($categories),
