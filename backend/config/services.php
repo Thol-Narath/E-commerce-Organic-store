@@ -31,4 +31,14 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+        'ca_bundle' => env('GOOGLE_CA_BUNDLE', storage_path('certs/cacert.pem')),
+        'proxy' => env('GOOGLE_PROXY'),
+        'proxy_username' => env('GOOGLE_PROXY_USERNAME'),
+        'proxy_password' => env('GOOGLE_PROXY_PASSWORD'),
+    ],
+
 ];
