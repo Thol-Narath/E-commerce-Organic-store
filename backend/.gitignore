@@ -16,3 +16,7 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+echo "frontend/.env" >> .gitignore
+echo "backend/.phpunit.result.cache" >> .gitignore
+echo "backend/storage/certs/" >> .gitignore

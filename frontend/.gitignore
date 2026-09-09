@@ -13,3 +13,7 @@ npm-debug.log*
 !.vscode/extensions.json
 .idea
 .DS_Store
+
+echo "frontend/.env" >> .gitignore
+echo "backend/.phpunit.result.cache" >> .gitignore
+echo "backend/storage/certs/" >> .gitignore

@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Button, Card, Col, Container, Form, Row, Alert } from 'react-bootstrap';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import GoogleSignInButton from '../../components/auth/GoogleSignInButton';
 
 export default function Login() {
-  const { user, login } = useAuth();
+  const { user, login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || '/';
@@ -13,6 +14,7 @@ export default function Login() {
   const [errors, setErrors] = useState(null);
   const [serverError, setServerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   if (user) {
     return <Navigate to="/" replace />;
@@ -36,6 +38,22 @@ export default function Login() {
       setErrors(err.errors);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleGoogleToken = async (credential) => {
+    setErrors(null);
+    setServerError('');
+    setGoogleLoading(true);
+
+    try {
+      await loginWithGoogle(credential);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setServerError(err.message);
+      setErrors(err.errors);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -84,6 +102,19 @@ export default function Login() {
                   {submitting ? 'Signing in...' : 'Sign In'}
                 </Button>
               </Form>
+
+              <div className="d-flex align-items-center my-4">
+                <hr className="flex-grow-1" />
+                <span className="text-muted px-3 small">or</span>
+                <hr className="flex-grow-1" />
+              </div>
+
+              <div className="d-flex justify-content-center">
+                <GoogleSignInButton
+                  onToken={handleGoogleToken}
+                  loading={googleLoading}
+                />
+              </div>
 
               <p className="text-center mt-3 mb-0">
                 Don&apos;t have an account? <Link to="/register">Register</Link>

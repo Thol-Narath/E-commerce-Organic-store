@@ -23,6 +23,12 @@ export const authService = {
     return data.data;
   },
 
+  async loginWithGoogle(accessToken) {
+    const { data } = await api.post('/auth/google', { access_token: accessToken });
+    setToken(data.data.token);
+    return data.data;
+  },
+
   async logout() {
     try {
       await api.post('/auth/logout');
