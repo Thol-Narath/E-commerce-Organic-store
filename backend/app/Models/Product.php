@@ -28,6 +28,7 @@ class Product extends Model
         'stock_quantity',
         'low_stock_threshold',
         'is_featured',
+        'is_best_seller',
         'status',
         'unit',
         'weight',
@@ -41,6 +42,7 @@ class Product extends Model
         'cost_price' => 'decimal:2',
         'weight' => 'decimal:3',
         'is_featured' => 'boolean',
+        'is_best_seller' => 'boolean',
     ];
 
     /**
@@ -57,6 +59,14 @@ class Product extends Model
     public function scopeFeatured(Builder $query): Builder
     {
         return $query->where('is_featured', true);
+    }
+
+    /**
+     * Scope to curated best sellers.
+     */
+    public function scopeBestSeller(Builder $query): Builder
+    {
+        return $query->where('is_best_seller', true);
     }
 
     public function category(): BelongsTo

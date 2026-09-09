@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import CustomerLayout from '../layouts/CustomerLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import ProtectedRoute from './ProtectedRoute';
@@ -35,12 +35,20 @@ import AdminInventoryDetail from '../pages/admin/AdminInventoryDetail';
 import AdminBanners from '../pages/admin/AdminBanners';
 import AdminSettings from '../pages/admin/AdminSettings';
 
+/** Redirect /orders/:orderNumber → /account/orders/:orderNumber */
+function OrderRedirect() {
+  const { orderNumber } = useParams();
+  return <Navigate to={`/account/orders/${orderNumber}`} replace />;
+}
+
 export default function AppRoutes() {
   return (
     <Routes>
       <Route element={<CustomerLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/shop" element={<ProductListPage />} />
+        <Route path="/best-sales" element={<ProductListPage />} />
+        <Route path="/promotions" element={<ProductListPage />} />
         <Route path="/products/:slug" element={<ProductDetailsPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/categories/:slug" element={<CategoryProductsPage />} />
@@ -48,8 +56,11 @@ export default function AppRoutes() {
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
+        {/* Customer account (profile, orders, addresses, wishlist) */}
+        <Route path="/account" element={<ProtectedRoute><Navigate to="/account/profile" replace /></ProtectedRoute>} />
         <Route
-          path="/profile"
+          path="/account/profile"
           element={
             <ProtectedRoute>
               <ProfilePage />
@@ -57,31 +68,7 @@ export default function AppRoutes() {
           }
         />
         <Route
-          path="/cart"
-          element={
-            <ProtectedRoute>
-              <CartPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/wishlist"
-          element={
-            <ProtectedRoute>
-              <WishlistPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile/addresses"
-          element={
-            <ProtectedRoute>
-              <AddressesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/orders"
+          path="/account/orders"
           element={
             <ProtectedRoute>
               <OrdersPage />
@@ -89,10 +76,42 @@ export default function AppRoutes() {
           }
         />
         <Route
-          path="/orders/:orderNumber"
+          path="/account/orders/:orderNumber"
           element={
             <ProtectedRoute>
               <OrderDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account/addresses"
+          element={
+            <ProtectedRoute>
+              <AddressesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account/wishlist"
+          element={
+            <ProtectedRoute>
+              <WishlistPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Back-compat aliases for the previous account URLs */}
+        <Route path="/profile" element={<ProtectedRoute><Navigate to="/account/profile" replace /></ProtectedRoute>} />
+        <Route path="/orders" element={<ProtectedRoute><Navigate to="/account/orders" replace /></ProtectedRoute>} />
+        <Route path="/orders/:orderNumber" element={<ProtectedRoute><OrderRedirect /></ProtectedRoute>} />
+        <Route path="/profile/addresses" element={<ProtectedRoute><Navigate to="/account/addresses" replace /></ProtectedRoute>} />
+        <Route path="/wishlist" element={<ProtectedRoute><Navigate to="/account/wishlist" replace /></ProtectedRoute>} />
+
+        <Route
+          path="/cart"
+          element={
+            <ProtectedRoute>
+              <CartPage />
             </ProtectedRoute>
           }
         />

@@ -17,4 +17,9 @@ export const adminSettingsService = {
     const { data } = await api.delete('/admin/settings/logo');
     return data.data;
   },
+
+  async updateStoreBranding(payload) {
+    const { data } = await api.put('/admin/settings/store-branding', payload);
+    return data.data;
+  },
 };

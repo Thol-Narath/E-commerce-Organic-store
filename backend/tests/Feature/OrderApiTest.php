@@ -196,6 +196,50 @@ class OrderApiTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    // Customer cancellation
+    // ------------------------------------------------------------------
+
+    public function test_customer_can_cancel_their_own_pending_order(): void
+    {
+        $token = $this->login($this->customer());
+        $this->addToCart($token, $this->product(['stock_quantity' => 5]), 2);
+        $order = $this->checkout($token);
+
+        $this->assertSame('pending', $order->status);
+
+        $this->withToken($token)->postJson('/api/v1/orders/'.$order->order_number.'/cancel')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'cancelled');
+
+        $this->assertSame('cancelled', $order->fresh()->status);
+    }
+
+    public function test_customer_cannot_cancel_another_customers_order(): void
+    {
+        $token = $this->login($this->customer());
+        $this->addToCart($token, $this->product(), 1);
+        $order = $this->checkout($token);
+
+        $otherToken = $this->login($this->otherCustomer());
+        $this->withToken($otherToken)->postJson('/api/v1/orders/'.$order->order_number.'/cancel')
+            ->assertStatus(404)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_customer_cannot_cancel_a_delivered_order(): void
+    {
+        $token = $this->login($this->customer());
+        $this->addToCart($token, $this->product(), 1);
+        $order = $this->checkout($token);
+        $order->update(['status' => 'delivered']);
+
+        $this->withToken($token)->postJson('/api/v1/orders/'.$order->order_number.'/cancel')
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
+
+    // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 

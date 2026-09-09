@@ -88,6 +88,7 @@ Route::prefix('v1')->group(function () {
         Route::get('profile', [ProfileController::class, 'show']);
         Route::put('profile', [ProfileController::class, 'update']);
         Route::put('profile/password', [ProfileController::class, 'updatePassword']);
+        Route::post('profile/avatar', [ProfileController::class, 'uploadAvatar']);
 
         // Customer cart + wishlist (Phase 6)
         Route::get('cart', [CartController::class, 'index']);
@@ -113,6 +114,7 @@ Route::prefix('v1')->group(function () {
         Route::post('checkout', [OrderController::class, 'checkout']);
         Route::get('orders', [OrderController::class, 'index']);
         Route::get('orders/{orderNumber}', [OrderController::class, 'show']);
+        Route::post('orders/{orderNumber}/cancel', [OrderController::class, 'cancel']);
 
         // Payments (Phase 8)
         Route::post('orders/{orderNumber}/payments', [PaymentController::class, 'store']);
@@ -193,6 +195,9 @@ Route::prefix('v1')->group(function () {
             Route::get('settings/logo', [SettingsController::class, 'getLogo']);
             Route::post('settings/logo', [SettingsController::class, 'uploadLogo']);
             Route::delete('settings/logo', [SettingsController::class, 'removeLogo']);
+
+            // Store branding (admin only): name, tagline, logo size.
+            Route::put('settings/store-branding', [SettingsController::class, 'updateStoreBranding']);
         });
 
         // Staff-scoped routes: staff or admin.

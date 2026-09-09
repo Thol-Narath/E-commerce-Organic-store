@@ -53,7 +53,7 @@ class AdminProductController extends Controller
         $data = $request->only([
             'category_id', 'name', 'description', 'short_description', 'sku', 'barcode',
             'price', 'compare_at_price', 'cost_price', 'stock_quantity', 'low_stock_threshold',
-            'is_featured', 'status', 'unit', 'weight', 'min_order_qty',
+            'is_featured', 'is_best_seller', 'status', 'unit', 'weight', 'min_order_qty',
         ]);
 
         $primaryImage = $request->file('images.0') ?? $request->file('image');
@@ -71,7 +71,7 @@ class AdminProductController extends Controller
         $data = $request->only([
             'category_id', 'name', 'description', 'short_description', 'sku', 'barcode',
             'price', 'compare_at_price', 'cost_price', 'stock_quantity', 'low_stock_threshold',
-            'is_featured', 'status', 'unit', 'weight', 'min_order_qty',
+            'is_featured', 'is_best_seller', 'status', 'unit', 'weight', 'min_order_qty',
         ]);
 
         $product = $this->productService->updateProduct($product, $data);

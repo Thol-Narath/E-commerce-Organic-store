@@ -9,6 +9,7 @@ use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
@@ -40,5 +41,29 @@ class ProfileController extends Controller
         $user->tokens()->where('id', '!=', $request->user()->currentAccessToken()->id)->delete();
 
         return $this->success(null, 'Password updated successfully.');
+    }
+
+    /**
+     * POST /api/v1/profile/avatar — upload a profile photo.
+     */
+    public function uploadAvatar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:2048'],
+        ]);
+
+        $user = $request->user();
+
+        // Delete old avatar if it exists
+        if ($user->avatar && Storage::disk('public')->exists(str_replace('/storage/', '', $user->avatar))) {
+            Storage::disk('public')->delete(str_replace('/storage/', '', $user->avatar));
+        }
+
+        $path = $request->file('avatar')->store('avatars', 'public');
+        $url = Storage::disk('public')->url($path);
+
+        $user->update(['avatar' => $url]);
+
+        return $this->success(['user' => new UserResource($user->fresh())], 'Avatar uploaded successfully.');
     }
 }

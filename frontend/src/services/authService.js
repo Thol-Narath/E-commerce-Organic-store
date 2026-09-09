@@ -52,6 +52,20 @@ export const authService = {
     return data.data;
   },
 
+  async changePassword(payload) {
+    const { data } = await api.put('/profile/password', payload);
+    return data.data;
+  },
+
+  async uploadAvatar(file) {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const { data } = await api.post('/profile/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data.data;
+  },
+
   hasToken() {
     return Boolean(getToken());
   },

@@ -38,7 +38,7 @@ class AdminOrderService
      * All order statuses (kept in sync with the orders.status column).
      */
     public const STATUSES = [
-        'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded',
+        'pending', 'confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'refunded',
     ];
 
     /**
@@ -48,8 +48,10 @@ class AdminOrderService
     private const TRANSITIONS = [
         'pending' => ['confirmed'],
         'confirmed' => ['processing'],
-        'processing' => ['shipped'],
-        'shipped' => ['delivered'],
+        'processing' => ['packed'],
+        'packed' => ['shipped'],
+        'shipped' => ['out_for_delivery'],
+        'out_for_delivery' => ['delivered'],
         'delivered' => [],
         'cancelled' => [],
         'refunded' => [],

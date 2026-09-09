@@ -113,6 +113,16 @@ class ProductService
             $query->where('is_featured', filter_var($filters['featured'], FILTER_VALIDATE_BOOLEAN));
         }
 
+        if (isset($filters['best_seller']) && $filters['best_seller'] !== '') {
+            $query->where('is_best_seller', filter_var($filters['best_seller'], FILTER_VALIDATE_BOOLEAN));
+        }
+
+        // "Discounted" = a promotion price is currently set (compare_at_price
+        // higher than the selling price). Drives the Promotions catalog page.
+        if (isset($filters['discounted']) && filter_var($filters['discounted'], FILTER_VALIDATE_BOOLEAN)) {
+            $query->whereColumn('compare_at_price', '>', 'price');
+        }
+
         // The public API may never switch status to expose inactive products.
         if ($forceActive) {
             $query->active();

@@ -113,6 +113,50 @@ class ProductApiTest extends TestCase
         });
     }
 
+    public function test_public_list_returns_best_sellers_only(): void
+    {
+        $this->product(['is_best_seller' => true]);
+        $this->product(['is_best_seller' => false]);
+
+        $response = $this->getJson('/api/v1/products?best_seller=1');
+
+        $response->assertStatus(200);
+        collect($response->json('data.items'))->each(function ($item) {
+            $this->assertTrue($item['is_best_seller']);
+        });
+    }
+
+    public function test_public_list_returns_discounted_products_only(): void
+    {
+        $this->product(['price' => 20.00, 'compare_at_price' => 25.00]);
+        $this->product(['price' => 20.00, 'compare_at_price' => null]);
+        $this->product(['price' => 20.00, 'compare_at_price' => 18.00]);
+
+        $response = $this->getJson('/api/v1/products?discounted=1');
+
+        $response->assertStatus(200);
+        $items = $response->json('data.items');
+
+        $this->assertNotEmpty($items);
+        collect($items)->each(function ($item) {
+            $this->assertNotNull($item['compare_at_price']);
+            $this->assertGreaterThan((float) $item['price'], (float) $item['compare_at_price']);
+        });
+    }
+
+    public function test_public_product_resource_exposes_is_best_seller(): void
+    {
+        $this->product(['is_best_seller' => true]);
+
+        $response = $this->getJson('/api/v1/products?best_seller=1');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure([
+                'data' => ['items' => [['is_best_seller']]],
+            ]);
+    }
+
     public function test_public_list_can_sort_by_price_ascending(): void
     {
         $this->product(['price' => 20.00]);

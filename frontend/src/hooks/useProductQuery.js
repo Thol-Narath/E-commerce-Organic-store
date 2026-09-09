@@ -70,7 +70,7 @@ export function useProductQuery({ searchParams, setSearchParams, fetchFn, basePa
     return () => {
       cancelled = true;
     };
-  }, [search, categoryId, minPrice, maxPrice, sort, page, fetchFn]);
+  }, [search, categoryId, minPrice, maxPrice, sort, page, fetchFn, baseParams]);
 
   const setParam = (key, value) => {
     setSearchParams(buildParams(searchParams, key, value), { replace: true });

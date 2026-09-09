@@ -22,7 +22,7 @@ class ProductController extends Controller
     {
         $filters = $request->only([
             'search', 'category_id', 'category_slug', 'min_price',
-            'max_price', 'featured', 'sort',
+            'max_price', 'featured', 'best_seller', 'discounted', 'sort',
         ]);
 
         $paginator = $this->productService->publicQuery($filters)

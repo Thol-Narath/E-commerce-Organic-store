@@ -43,6 +43,7 @@ class OrderResource extends JsonResource
                 'payments',
                 $latestPayment ? new PaymentResource($latestPayment) : null
             ),
+            'status_histories' => \App\Http\Resources\OrderStatusHistoryResource::collection($this->whenLoaded('statusHistories')),
             'created_at' => $this->when($this->created_at !== null, $this->created_at->toISOString()),
         ];
     }

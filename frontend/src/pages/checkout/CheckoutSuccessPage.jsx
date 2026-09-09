@@ -17,7 +17,7 @@ export default function CheckoutSuccessPage() {
   const order = location.state?.order;
 
   if (!order) {
-    return <Navigate to="/orders" replace />;
+    return <Navigate to="/account/orders" replace />;
   }
 
   return (

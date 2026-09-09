@@ -15,6 +15,12 @@ const EMPTY = {
   is_default: false,
 };
 
+const LABEL_OPTIONS = [
+  { value: 'home', label: 'Home' },
+  { value: 'office', label: 'Office' },
+  { value: 'other', label: 'Other' },
+];
+
 /**
  * Reusable create/edit address form rendered inside a modal. Fields mirror the
  * backend `addresses` schema. `onSubmit(values)` must be a promise-returning
@@ -78,15 +84,20 @@ export default function AddressForm({
           <Row className="g-3">
             <Col xs={12} md={6}>
               <Form.Group controlId="addressLabel">
-                <Form.Label>Label (optional)</Form.Label>
-                <Form.Control
-                  type="text"
+                <Form.Label>Label</Form.Label>
+                <Form.Select
                   name="label"
                   value={form.label}
                   onChange={handleChange}
-                  placeholder="e.g. Home, Work"
                   isInvalid={Boolean(errors?.label)}
-                />
+                >
+                  <option value="">Select label…</option>
+                  {LABEL_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </Form.Select>
                 <Form.Control.Feedback type="invalid">{errors?.label?.[0]}</Form.Control.Feedback>
               </Form.Group>
             </Col>

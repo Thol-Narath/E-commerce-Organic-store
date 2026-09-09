@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Button, NavDropdown } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
@@ -8,11 +8,17 @@ import { categoryService } from '../../services/categoryService';
 import { settingsService } from '../../services/settingsService';
 import {
   CartIcon,
+  ChevronDownIcon,
   HeartIcon,
+  HomeIcon,
   LeafIcon,
+  LogoutIcon,
+  MapPinIcon,
   MenuIcon,
+  PackageIcon,
   PhoneIcon,
   SearchIcon,
+  UserCircleIcon,
   UserIcon,
   XIcon,
 } from '../../assets/icons';
@@ -22,8 +28,8 @@ const NAV_LINKS = [
   { to: '/', label: 'Home', end: true },
   { to: '/shop', label: 'Shop' },
   { to: '/about', label: 'About' },
-  { to: '/shop?sort=best_sales', label: 'Best Sales' },
-  { to: '/shop?sort=promotions', label: 'Promotions' },
+  { to: '/best-sales', label: 'Best Sales' },
+  { to: '/promotions', label: 'Promotions' },
   { to: '/contact', label: 'Contact' },
 ];
 
@@ -49,8 +55,38 @@ export default function Header() {
   const [deliveryLocation, setDeliveryLocation] = useState(LOCATIONS[0]);
   const [categories, setCategories] = useState([]);
   const [storeLogo, setStoreLogo] = useState('/logo.png');
+  const [storeName, setStoreName] = useState('Delicacy Organic');
+  const [logoHeight, setLogoHeight] = useState(42);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef(null);
 
   const closeMenu = () => setMenuOpen(false);
+
+  // Split the admin-customizable store name into base + accent word, so the
+  // brand mark keeps its two-tone style ("Delicacy Organic" -> Delicacy|Organic).
+  const brandParts = useMemo(() => {
+    const name = (storeName || 'Delicacy Organic').trim();
+    const spaceIndex = name.indexOf(' ');
+    if (spaceIndex === -1) return { base: name, accent: null };
+    return { base: name.slice(0, spaceIndex), accent: name.slice(spaceIndex + 1) };
+  }, [storeName]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (accountRef.current && !accountRef.current.contains(e.target)) {
+        setAccountOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setAccountOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -71,6 +107,8 @@ export default function Header() {
       .publicSettings()
       .then((data) => {
         if (data?.store?.logo) setStoreLogo(data.store.logo);
+        if (data?.store?.name) setStoreName(data.store.name);
+        if (data?.store?.logo_height) setLogoHeight(data.store.logo_height);
       })
       .catch(() => {});
   }, []);
@@ -88,6 +126,7 @@ export default function Header() {
   };
 
   const handleLogout = async () => {
+    setAccountOpen(false);
     await logout();
     navigate('/');
   };
@@ -99,7 +138,7 @@ export default function Header() {
         <div className="dl-top-bar-inner">
           <span className="dl-top-brand">
             <LeafIcon size={14} className="me-1" />
-            Delicacy Organic
+            {storeName}
           </span>
 
           <NavDropdown
@@ -137,11 +176,12 @@ export default function Header() {
         <div className="dl-main-nav-inner">
           {/* Brand */}
           <Link to="/" className="dl-brand">
-            <span className="dl-brand-icon">
-              <img src={storeLogo} alt="Delicacy Organic" className="dl-brand-logo" />
+            <span className="dl-brand-icon" style={{ width: `${logoHeight}px`, height: `${logoHeight}px` }}>
+              <img src={storeLogo} alt={storeName} className="dl-brand-logo" />
             </span>
             <span className="dl-brand-text">
-              Delicacy<span className="dl-brand-accent">Organic</span>
+              {brandParts.base}
+              {brandParts.accent && <span className="dl-brand-accent">{brandParts.accent}</span>}
             </span>
           </Link>
 
@@ -181,7 +221,7 @@ export default function Header() {
 
             <Button
               as={Link}
-              to="/wishlist"
+              to="/account/wishlist"
               className="dl-icon-btn"
               title="Wishlist"
               aria-label={
@@ -214,40 +254,69 @@ export default function Header() {
             </Button>
 
             {user ? (
-              <div className="dl-user-menu">
-                <NavDropdown
-                  title={
-                    <span className="dl-user-trigger">
-                      <span className="header-avatar">
-                        <UserIcon size={14} />
-                      </span>
-                      <span className="dl-user-name d-none d-lg-inline">{user.name}</span>
-                    </span>
-                  }
-                  id="dl-user-dropdown"
-                  align="end"
+              <div className="dl-user-menu" ref={accountRef}>
+                {/* Trigger */}
+                <button
+                  type="button"
+                  className="dl-account-trigger"
+                  onClick={() => setAccountOpen((o) => !o)}
+                  aria-expanded={accountOpen}
+                  aria-haspopup="true"
+                  aria-label="Account menu"
                 >
-                  <NavDropdown.Header>
-                    Signed in as <strong>{user.name}</strong>
-                  </NavDropdown.Header>
-                  <NavDropdown.Divider />
-                  <NavDropdown.Item as={Link} to="/profile">
-                    My profile
-                  </NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/orders">
-                    My orders
-                  </NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/profile/addresses">
-                    Addresses
-                  </NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/wishlist">
-                    Wishlist
-                  </NavDropdown.Item>
-                  <NavDropdown.Divider />
-                  <NavDropdown.Item onClick={handleLogout}>
-                    Sign out
-                  </NavDropdown.Item>
-                </NavDropdown>
+                  <span className="header-avatar header-avatar-ring">
+                    {user.avatar ? (
+                      <img src={user.avatar} alt={user.name} className="header-avatar-img" />
+                    ) : (
+                      <span className="header-avatar-initial">
+                        {(user.name || '?').charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </span>
+                  <span className="dl-account-meta d-none d-md-block">
+                    <span className="dl-account-name">{user.name}</span>
+                  </span>
+                  <ChevronDownIcon
+                    size={16}
+                    className={`dl-account-chevron ${accountOpen ? 'is-open' : ''}`}
+                  />
+                </button>
+
+                {/* Dropdown */}
+                {accountOpen && (
+                  <div className="dl-account-menu" role="menu" aria-label="Account">
+                    <div className="dl-account-menu-header">
+                      <p className="dl-account-menu-name text-truncate">{user.name}</p>
+                      <p className="dl-account-menu-email text-truncate">{user.email}</p>
+                    </div>
+
+                    <div className="dl-account-menu-links">
+                      <Link to="/account/profile" role="menuitem" onClick={() => setAccountOpen(false)}>
+                        <UserCircleIcon size={16} />
+                        My Profile
+                      </Link>
+                      <Link to="/account/orders" role="menuitem" onClick={() => setAccountOpen(false)}>
+                        <PackageIcon size={16} />
+                        My Orders
+                      </Link>
+                      <Link to="/account/addresses" role="menuitem" onClick={() => setAccountOpen(false)}>
+                        <MapPinIcon size={16} />
+                        Addresses
+                      </Link>
+                      <Link to="/account/wishlist" role="menuitem" onClick={() => setAccountOpen(false)}>
+                        <HeartIcon size={16} />
+                        Wishlist
+                      </Link>
+                    </div>
+
+                    <div className="dl-account-menu-actions">
+                      <button type="button" role="menuitem" onClick={handleLogout}>
+                        <LogoutIcon size={16} />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="header-auth-buttons d-none d-lg-flex">

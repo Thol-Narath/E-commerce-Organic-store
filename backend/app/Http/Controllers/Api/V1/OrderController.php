@@ -63,4 +63,26 @@ class OrderController extends Controller
 
         return $this->success(new OrderResource($order), 'Order retrieved successfully.');
     }
+
+    /**
+     * POST /api/v1/orders/{orderNumber}/cancel — cancel a customer's own order.
+     */
+    public function cancel(Request $request, string $orderNumber): JsonResponse
+    {
+        try {
+            $result = $this->orderService->cancel($request->user(), $orderNumber);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->error('The order could not be cancelled.', $e->errors(), 422);
+        }
+
+        if (! $result) {
+            return $this->error('Order not found.', null, 404);
+        }
+
+        $message = $result['refund_required']
+            ? 'Order cancelled successfully. Refund processing required.'
+            : 'Order cancelled successfully.';
+
+        return $this->success(new OrderResource($result['order']), $message);
+    }
 }

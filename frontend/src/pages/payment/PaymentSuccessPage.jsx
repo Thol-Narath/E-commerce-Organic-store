@@ -49,7 +49,7 @@ export default function PaymentSuccessPage() {
               <Button as={Link} to={`/payment/${orderNumber}`} variant="success">
                 Continue to Payment
               </Button>
-              <Button as={Link} to="/orders" variant="outline-success">
+              <Button as={Link} to="/account/orders" variant="outline-success">
                 My Orders
               </Button>
             </div>
