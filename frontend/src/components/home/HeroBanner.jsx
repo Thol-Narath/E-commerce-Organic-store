@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
-import { ArrowRightIcon } from '../../assets/icons';
+import { ArrowRightIcon, LeafIcon } from '../../assets/icons';
 import { bannerService } from '../../services/bannerService';
 
 const FALLBACK_BANNERS = [
@@ -111,9 +111,7 @@ export default function HeroBanner() {
               <img src={banner.image_url} alt={banner.title} className="hero-banner-photo" />
             ) : (
               <div className="hero-banner-fruit-placeholder" aria-hidden="true">
-                <span className="hero-fruit-emoji"></span>
-                <span className="hero-fruit-emoji hero-fruit-2"></span>
-                <span className="hero-fruit-emoji hero-fruit-3"></span>
+                <LeafIcon size={72} className="hero-fruit-emoji" />
               </div>
             )}
           </div>

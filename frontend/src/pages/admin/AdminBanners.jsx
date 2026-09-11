@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Badge, Button, Form, Modal, Spinner, Table } from 'react-bootstrap';
+import { Alert, Badge, Button, Carousel, Form, Modal, Spinner, Table } from 'react-bootstrap';
 import { adminBannerService } from '../../services/adminBannerService';
 import { normalizeError } from '../../services/api';
 import { ChevronUpIcon, ChevronDownIcon } from '../../assets/icons';
@@ -151,6 +151,8 @@ export default function AdminBanners() {
     }
   };
 
+  const bannersPreview = banners.filter((b) => b.is_active);
+
   return (
     <div>
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
@@ -167,6 +169,41 @@ export default function AdminBanners() {
       ) : banners.length === 0 ? (
         <Alert variant="info">No banners found. Create your first banner slide.</Alert>
       ) : (
+        <>
+          {bannersPreview.length > 0 && (
+            <Carousel className="admin-banner-preview mb-4" interval={4000} controls indicators pause={false}>
+              {bannersPreview.map((b) => (
+                <Carousel.Item key={b.id}>
+                  <div
+                    className="admin-banner-preview-slide"
+                    style={{ backgroundColor: b.bg_color || '#f97316' }}
+                  >
+                    {b.image_url && (
+                      <div className="admin-banner-preview-bg">
+                        <img src={b.image_url} alt={b.title} />
+                      </div>
+                    )}
+                    <div className="admin-banner-preview-overlay" />
+                    <div className="admin-banner-preview-content">
+                      {(b.discount_label || b.discount_percent) && (
+                        <Badge bg="light" text="dark" pill className="mb-2">
+                          {b.discount_label || `${b.discount_percent}% OFF`}
+                        </Badge>
+                      )}
+                      <h5 className="mb-1 fw-bold">{b.title}</h5>
+                      {b.subtitle && (
+                        <div className="small opacity-90 mb-1">{b.subtitle}</div>
+                      )}
+                      <span className="btn btn-sm btn-light mt-2 fw-semibold">
+                        {b.cta_text || 'Shop Now'}
+                      </span>
+                    </div>
+                  </div>
+                </Carousel.Item>
+              ))}
+            </Carousel>
+          )}
+
         <div className="table-responsive">
           <Table hover striped>
             <thead>
@@ -272,6 +309,7 @@ export default function AdminBanners() {
             </tbody>
           </Table>
         </div>
+        </>
       )}
 
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
