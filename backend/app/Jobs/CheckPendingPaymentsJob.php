@@ -28,16 +28,19 @@ class CheckPendingPaymentsJob implements ShouldQueue
         //    works even when the gateway is unreachable).
         $this->expireOverduePayments($paymentService);
 
-        // 2. Optionally reconcile still-pending attempts that DO have a gateway
-        //    reference, so a payment the gateway already settled gets marked
-        //    paid even if the webhook never arrived.
-        if (! config('payway.verify_transaction', false)
-            || ! config('payway.merchant_id')
-            || ! config('payway.api_key')) {
-            return;
+        // 2. Reconcile PayWay pending attempts (when configured).
+        if (config('payway.verify_transaction', false)
+            && config('payway.merchant_id')
+            && config('payway.api_key')) {
+            $this->reconcilePendingPayments($paymentService, 'payway');
         }
 
-        $this->reconcilePendingPayments($paymentService);
+        // 3. Reconcile Bakong pending attempts (when configured).
+        if (config('bakong.verify_transaction', false)
+            && config('bakong.access_token')
+            && config('bakong.account_id')) {
+            $this->reconcilePendingPayments($paymentService, 'bakong');
+        }
     }
 
     private function expireOverduePayments(PaymentService $paymentService): void
@@ -54,9 +57,10 @@ class CheckPendingPaymentsJob implements ShouldQueue
             ->each(fn (Payment $payment) => $paymentService->markExpired($payment));
     }
 
-    private function reconcilePendingPayments(PaymentService $paymentService): void
+    private function reconcilePendingPayments(PaymentService $paymentService, string $gateway = 'payway'): void
     {
         Payment::where('payment_status', PaymentStatus::Pending->value)
+            ->where('gateway', $gateway)
             ->whereNotNull('gateway_transaction_id')
             ->where('created_at', '>=', now()->subHours(24))
             ->orderBy('created_at')
@@ -66,8 +70,9 @@ class CheckPendingPaymentsJob implements ShouldQueue
                 try {
                     $paymentService->refresh($payment);
                 } catch (PaymentGatewayException $e) {
-                    Log::warning('PayWay reconciliation skipped', [
+                    Log::warning('Gateway reconciliation skipped', [
                         'payment_id' => $payment->id,
+                        'gateway' => $payment->gateway,
                         'gateway_code' => $e->gatewayCode(),
                     ]);
                 }

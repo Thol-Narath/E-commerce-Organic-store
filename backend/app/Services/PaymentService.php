@@ -14,7 +14,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Payment lifecycle for online PayWay payments (Phase 8).
+ * Payment lifecycle for online payments (Phase 8).
+ *
+ * Supports two gateways:
+ *   - ABA PayWay: aba_pay, khqr, card
+ *   - Bakong Open API: bakong (direct KHQR)
  *
  * Rules enforced here (business-rules.md §Payment):
  *   - The payment amount/currency ALWAYS come from the stored order total —
@@ -22,7 +26,7 @@ use Illuminate\Support\Str;
  *   - Only enabled methods listed by GET /payment-methods can be used;
  *   - An order can have many attempts but only ONE success settles it;
  *   - A payment is considered paid ONLY after the gateway confirms it
- *     (webhook with valid HMAC signature, or check-transaction APPOVED) and
+ *     (webhook with valid HMAC signature, or check-transaction APPROVED) and
  *     the amount/currency are verified when the gateway reports them;
  *   - A confirmed payment flips the order to payment_status=paid,
  *     status=confirmed;
@@ -30,7 +34,10 @@ use Illuminate\Support\Str;
  */
 class PaymentService
 {
-    public function __construct(private readonly PayWayService $payWay) {}
+    public function __construct(
+        private readonly PayWayService $payWay,
+        private readonly BakongService $bakong,
+    ) {}
 
     /**
      * The enabled, supported payment methods surfaced to the UI.
@@ -38,11 +45,21 @@ class PaymentService
     public function methods(): array
     {
         return collect(PaymentMethod::cases())
-            ->filter(fn (PaymentMethod $method) => $method->isPayway() && $this->isMethodEnabled($method->value))
+            ->filter(function (PaymentMethod $method) {
+                if ($method->isPayway()) {
+                    return $this->isMethodEnabled($method->value);
+                }
+
+                if ($method->isBakong()) {
+                    return (bool) config('bakong.enabled', false) && $this->bakong->isConfigured();
+                }
+
+                return false;
+            })
             ->map(fn (PaymentMethod $method) => [
                 'method' => $method->value,
                 'label' => $method->label(),
-                'payway_option' => $method->paywayOption(),
+                'payway_option' => $method->isPayway() ? $method->paywayOption() : null,
             ])
             ->values()
             ->all();
@@ -52,9 +69,19 @@ class PaymentService
     {
         $enum = PaymentMethod::tryFrom($method);
 
-        return $enum !== null
-            && $enum->isPayway()
-            && (bool) config('payway.methods.'.$method, false);
+        if ($enum === null) {
+            return false;
+        }
+
+        if ($enum->isPayway()) {
+            return (bool) config('payway.methods.'.$method, false);
+        }
+
+        if ($enum->isBakong()) {
+            return (bool) config('bakong.enabled', false) && $this->bakong->isConfigured();
+        }
+
+        return false;
     }
 
     /**
@@ -66,7 +93,7 @@ class PaymentService
     }
 
     /**
-     * Create a payment attempt against the PayWay gateway.
+     * Create a payment attempt against a payment gateway.
      *
      * @throws PaymentException     for business-rule violations
      * @throws PaymentGatewayException when the gateway refuses/unavailable
@@ -75,7 +102,7 @@ class PaymentService
     {
         $enum = PaymentMethod::tryFrom($paymentMethod);
 
-        if ($enum === null || ! $enum->isPayway()) {
+        if ($enum === null) {
             throw new PaymentException('The payment method is not supported.', 422);
         }
 
@@ -101,14 +128,21 @@ class PaymentService
             throw new PaymentException('The order total must be greater than zero.', 422);
         }
 
-        $currency = strtoupper((string) config('payway.currency', 'USD'));
-        $lifetime = max(3, (int) config('payway.lifetime', 30));
+        $currency = $enum->isBakong()
+            ? strtoupper((string) config('bakong.currency', 'USD'))
+            : strtoupper((string) config('payway.currency', 'USD'));
+
+        $lifetime = $enum->isBakong()
+            ? max(3, (int) config('bakong.lifetime', 15))
+            : max(3, (int) config('payway.lifetime', 30));
+
+        $gateway = $enum->isBakong() ? 'bakong' : 'payway';
 
         $payment = Payment::create([
             'payment_number' => 'PENDING',
             'order_id' => $order->id,
             'payment_method' => $enum->value,
-            'gateway' => 'payway',
+            'gateway' => $gateway,
             'amount' => $amount,
             'currency' => $currency,
             'payment_status' => PaymentStatus::Pending->value,
@@ -119,7 +153,11 @@ class PaymentService
             .str_pad((string) $payment->id, 6, '0', STR_PAD_LEFT);
         $payment->save();
 
-        $result = $this->payWay->createPayment($this->gatewayPayload($user, $order, $payment, $enum));
+        if ($enum->isBakong()) {
+            $result = $this->createBakongPayment($order, $payment);
+        } else {
+            $result = $this->payWay->createPayment($this->gatewayPayload($user, $order, $payment, $enum));
+        }
 
         $payment->gateway_transaction_id = $result['gateway_transaction_id'];
 
@@ -231,11 +269,10 @@ class PaymentService
     }
 
     /**
-     * Reconcile a pending payment against the gateway's check-transaction-2.
+     * Reconcile a pending payment against its gateway.
      *
-     * A gateway "transaction not found" (code 6) means the attempt was never
-     * created at PayWay, so the payment is marked failed. Any other gateway
-     * failure is left pending and will be re-tried by the scheduler.
+     * PayWay: check-transaction-2 endpoint.
+     * Bakong: check_transaction_by_md5 endpoint.
      */
     public function refresh(Payment $payment): Payment
     {
@@ -243,6 +280,11 @@ class PaymentService
             return $payment;
         }
 
+        if ($payment->gateway === 'bakong') {
+            return $this->refreshBakong($payment);
+        }
+
+        // PayWay gateway
         if (! $payment->gateway_transaction_id) {
             return $payment;
         }
@@ -271,6 +313,52 @@ class PaymentService
             PaymentStatus::Cancelled => $this->markCancelled($payment),
             default => $this->markFailed($payment),
         };
+    }
+
+    /**
+     * Check a Bakong payment via the check_transaction_by_md5 endpoint.
+     */
+    private function refreshBakong(Payment $payment): Payment
+    {
+        if (! $payment->gateway_transaction_id) {
+            return $payment;
+        }
+
+        try {
+            $result = $this->bakong->checkTransaction($payment->gateway_transaction_id);
+        } catch (PaymentGatewayException) {
+            return $payment;
+        }
+
+        if ($result['paid']) {
+            $data = $result['data'];
+
+            return $this->confirmPayment(
+                $payment,
+                isset($data['amount']) ? (float) $data['amount'] : null,
+                $data['currency'] ?? null,
+                $data['hash'] ?? null,
+            );
+        }
+
+        return $payment;
+    }
+
+    /**
+     * Generate a KHQR payment via the Bakong Open API.
+     */
+    private function createBakongPayment(Order $order, Payment $payment): array
+    {
+        $qrData = $this->bakong->generatePaymentQR(
+            (float) $payment->amount,
+            $order->order_number,
+        );
+
+        return [
+            'gateway_transaction_id' => $qrData['md5'],
+            'qr_string' => $qrData['qr_string'],
+            'deeplink' => $qrData['deeplink'],
+        ];
     }
 
     /**

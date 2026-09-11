@@ -7,6 +7,7 @@ enum PaymentMethod: string
     case AbaPay = 'aba_pay';
     case Khqr = 'khqr';
     case Card = 'card';
+    case Bakong = 'bakong';
     case Cod = 'cod';
     case BankTransfer = 'bank_transfer';
     case Online = 'online';
@@ -20,6 +21,14 @@ enum PaymentMethod: string
     }
 
     /**
+     * Whether this method resolves to the Bakong Open API gateway.
+     */
+    public function isBakong(): bool
+    {
+        return $this === self::Bakong;
+    }
+
+    /**
      * Human-friendly label for the UI.
      */
     public function label(): string
@@ -28,6 +37,7 @@ enum PaymentMethod: string
             self::AbaPay => 'ABA Pay',
             self::Khqr => 'KHQR (Scan to Pay)',
             self::Card => 'Card Payment',
+            self::Bakong => 'Bakong KHQR',
             self::Cod => 'Cash on Delivery',
             self::BankTransfer => 'Bank Transfer',
             self::Online => 'Online Payment',

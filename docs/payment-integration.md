@@ -1,9 +1,10 @@
-# Phase 8 — ABA PayWay Payment Integration
+# Phase 8 — Payment Integration (ABA PayWay + Bakong KHQR)
 
-> Phase 8 implementation notes. Version 1.1.0
+> Phase 8 implementation notes. Version 1.2.0
 
 This document describes how the Organic Store integrates ABA PayWay (developer.payway.com.kh)
-for `aba_pay`, `khqr` and `card` payments. It explains the trust boundaries, the exact
+for `aba_pay`, `khqr` and `card` payments, and the **Bakong Open API**
+(api-bakong.nbc.gov.kh) for `bakong` KHQR payments. It explains the trust boundaries, the exact
 gateway calls, signature rules, and how to verify the integration.
 
 ---
@@ -27,8 +28,9 @@ order (others are cancelled); failed/expired/cancelled attempts never touch the 
 
 ## 2. Supported Methods & Configuration
 
-`app/Enums/PaymentMethod` defines `aba_pay`, `khqr`, `card` (+ `cod`, `bank_transfer`, `online`
-reserved for later phases). Only the three PayWay methods (`isPayway()`) can be enabled.
+`app/Enums/PaymentMethod` defines `aba_pay`, `khqr`, `card`, `cod`, `bank_transfer`, `online`
+(reserved for later phases) and Bakong's `bakong`. The three PayWay methods (`isPayway()`) and
+`bakong` (`isBakong()`) are the enabled payment methods; the others are reserved placeholders.
 
 `config/payway.php` (values from `.env`):
 
@@ -217,3 +219,99 @@ exactly one fake and helpers never install fakes. Where a fixture must simulate 
 - [ ] Scheduler running: `php artisan schedule:work` / cron entry (expiry + reconcile), plus a
       queue worker if `QUEUE_CONNECTION` is not `sync`.
 - [ ] Re-run `php artisan test` and `npm run build` after each release.
+- [ ] Bakong: set `BAKONG_ACCESS_TOKEN` / `BAKONG_ACCOUNT_ID`, point `BAKONG_BASE_URL` at the real
+      API, and walk through a scan + deeplink payment (see section 11).
+
+---
+
+## 11. Bakong KHQR Integration
+
+Bakong is Cambodia's national payment system (National Bank of Cambodia). The store generates a
+standards-compliant **KHQR string locally** and uses the official Bakong Open API
+(`https://api-bakong.nbc.gov.kh/v1`) only to (a) optionally fetch a deeplink for the generated QR
+and (b) reconcile/confirm a payment later.
+
+### 11.1 Trust Boundaries
+
+- The **access token is server-side only** — it lives in `.env`/`config/bakong.php` and never
+  reaches the browser.
+- The QR string is generated **locally in PHP** (`App\Services\BakongQRGenerator`, EMVCo
+  TLV + CRC-16), so payment initiation does not depend on Bakong API availability. If the
+  optional `generate_deeplink_by_qr` call fails, the attempt is **still created** with the QR
+  (201), just without a deeplink.
+- Amount/currency always come from the stored `orders.total` / `config('bakong.currency')`; the
+  client never supplies them.
+- A payment becomes `paid` only when `check_transaction_by_md5` returns `responseCode 0` with
+  `data` (paid) **and** the reported amount matches the order total.
+- `gateway_transaction_id` stores the **MD5 of the QR string** — this is the id used to look the
+  transaction up in Bakong. No DB schema change is required (it reuses the existing column).
+
+### 11.2 Configuration (`config/bakong.php` from `.env`)
+
+| Env key | Default | Meaning |
+|---------|---------|---------|
+| `BAKONG_ENABLED` | `false` | Surfaces `bakong` in `GET /payment-methods` and enables use |
+| `BAKONG_BASE_URL` | `https://api-bakong.nbc.gov.kh/v1` | Bakong Open API base |
+| `BAKONG_ACCESS_TOKEN` | — | Access token; register at `api-bakong.nbc.gov.kh/register/` (auto-renews via `/renew_token`) |
+| `BAKONG_ACCOUNT_ID` | — | Your merchant/account id baked into the QR |
+| `BAKONG_MERCHANT_NAME` | `Organic Store` | QR merchant name (≤ 25 chars) — **quote values with spaces in `.env`** |
+| `BAKONG_MERCHANT_CITY` | `Phnom Penh` | QR merchant city (≤ 15 chars) — quote in `.env` |
+| `BAKONG_CURRENCY` | `USD` | QR/transaction currency (`840` USD / `116` KHR) |
+| `BAKONG_LIFETIME` | `15` | Attempt lifetime in minutes |
+| `BAKONG_TIMEOUT` | `30` | HTTP timeout (s) |
+| `BAKONG_VERIFY_TRANSACTION` | `true` | Scheduler re-checks pending Bakong attempts |
+
+### 11.3 Flow
+
+1. **Attempt creation** — `PaymentService::createPayment()` → `createBakongPayment()`:
+   - `BakongQRGenerator::generate()` builds the EMVCo QR (tags: 00 format, 01 point-of-initiation
+     `12`/`11`, 29 Bakong account info, 52 MCC, 53 currency, 54 amount, 58 country, 59 name,
+     60 city, 63 CRC over everything). `generateMd5()` stores the QR's MD5 in
+     `gateway_transaction_id`.
+   - Optionally, `BakongService::generateDeeplink()` posts the QR to
+     `POST {base_url}/generate_deeplink_by_qr`. A non-200 or an error is **not** fatal — the QR
+     payment is returned (201) and the deeplink is simply absent.
+2. **Scan / pay** — the customer scans the QR with any KHQR-enabled banking app (or taps the
+   deeplink); the money moves at the **bank**, outside the store.
+3. **Reconcile** — `PaymentService::refresh()` → `refreshBakong()` →
+   `POST {base_url}/check_transaction_by_md5` with `{ md5: gateway_transaction_id }`:
+   - `responseCode 0` + `data` present → `paid` (idempotent, `ConfirmPaymentRequest` amount check).
+   - `responseCode 0` + no `data` → still `pending`.
+   - any other code / HTTP error → stays `pending` for a later run (never failed on transient
+     errors); network failure → pending.
+   - A `401 Unauthorized` triggers a one-shot `renew_token` and retry.
+   - Reported amount mismatch → `422`, never paid.
+4. **Expiry & scheduler** — `CheckPendingPaymentsJob` handles both gateways: pending Bakong
+   attempts expire via `expires_at = now + BAKONG_LIFETIME`, and while `BAKONG_VERIFY_TRANSACTION`
+   is enabled plus the token/account are set it reconciles a batch of still-pending attempts that
+   have a `gateway_transaction_id`.
+
+### 11.4 Endpoints
+
+Same set as PayWay (`/orders/{orderNumber}/payments`, `/refresh`, `/payment-methods`); there is
+**no Bakong webhook** — reconciliation is pull-based. `POST /orders/.../payments` accepts
+`payment_method: "bakong"` and returns the QR (`qr_string`) and optional `deeplink` in the
+`PaymentResource` (already exposed for pending payments).
+
+### 11.5 Frontend
+
+- `PaymentMethodSelector` advertises `bakong` ("Bakong KHQR") from `payment-methods`.
+- `PaymentPage` renders `BakongPayment` for the `bakong` method: the QR image
+  (`qrcode.react`) plus a "Pay with Bakong" deeplink button when a deeplink is present.
+- The existing `usePaymentStatus` polling + refresh button work unchanged.
+
+### 11.6 Tests
+
+- `tests/Unit/BakongQRGeneratorTest` — EMVCo structure (payload format, point-of-initiation,
+  tag 29 GUID/account sub-tags, currency/amount tags), static vs dynamic QR, deterministic MD5,
+  CRC-16 recomputation, name/city truncation.
+- `PaymentApiTest` Bakong cases (via `enableBakong()` helper) — method listed/hidden; attempt
+  returns QR + MD5 without any gateway call for generation; refresh: confirm paid, keeps pending
+  while unpaid, rejects amount mismatch; deeplink failure still 201.
+- `CheckPendingPaymentsJobTest` covers the generic reconcile path shared with PayWay.
+
+> **Live verification caveat:** no real Bakong credentials are available in this environment, so
+> live calls are unverified. Once you register, put a **sandbox/test account** in `.env`
+> (`BAKONG_ACCESS_TOKEN`, `BAKONG_ACCOUNT_ID`), enable `BAKONG_ENABLED=true`, then scan the QR
+> with the Bakong app and watch `/payment-status` flip to `paid`. Remember the access token has a
+> 90-day validity and renews automatically via `/renew_token`.
