@@ -2701,6 +2701,9 @@ a:hover {
 .admin-sidebar {
   background: var(--organic-bg-soft);
   border-bottom: 1px solid var(--organic-border);
+  position: sticky;
+  top: 0;
+  z-index: 1020;
 }
 
 .admin-brand {
@@ -2778,18 +2781,21 @@ a:hover {
 }
 
 @media (min-width: 768px) {
-  .admin-shell {
-    flex-direction: row;
-    align-items: stretch;
-  }
-
   .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
     width: 240px;
+    height: 100vh;
+    overflow-y: auto;
     border-bottom: 0;
     border-right: 1px solid var(--organic-border);
-    position: sticky;
-    top: 0;
-    height: 100vh;
+  }
+
+  .admin-content {
+    margin-left: 240px;
+    width: auto;
   }
 
   .admin-nav {
