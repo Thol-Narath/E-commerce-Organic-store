@@ -3,7 +3,7 @@ import { Container } from 'react-bootstrap';
 import { productService } from '../../services/productService';
 import { categoryService } from '../../services/categoryService';
 import SectionHeader from '../common/SectionHeader';
-import HomeProductCard from '../product/HomeProductCard';
+import PaginatedProductGrid from '../product/PaginatedProductGrid';
 
 export default function MostPopularProducts() {
   const [categories, setCategories] = useState([]);
@@ -20,7 +20,8 @@ export default function MostPopularProducts() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    const params = { sort: 'best_selling', per_page: 8 };
+    setProducts([]);
+    const params = { sort: 'best_selling', per_page: 10 };
     if (activeTab !== 'all') {
       params.category_slug = activeTab;
     }
@@ -55,33 +56,11 @@ export default function MostPopularProducts() {
           ))}
         </div>
 
-        {loading ? (
-          <div className="row g-3 g-lg-4">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="col-6 col-md-4 col-lg-3">
-                <div className="product-skeleton">
-                  <div className="product-skeleton-image skeleton-shimmer" />
-                  <div className="p-3">
-                    <div className="skeleton-line skeleton-shimmer mb-2 w-50" />
-                    <div className="skeleton-line skeleton-shimmer mb-2 w-75" />
-                    <div className="skeleton-line skeleton-shimmer mb-3 w-40" />
-                    <div className="skeleton-btn skeleton-shimmer" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : products.length === 0 ? (
-          <p className="text-muted text-center">No products found in this category.</p>
-        ) : (
-          <div className="row g-3 g-lg-4">
-            {products.map((product) => (
-              <div key={product.id} className="col-6 col-md-4 col-lg-3">
-                <HomeProductCard product={product} />
-              </div>
-            ))}
-          </div>
-        )}
+        <PaginatedProductGrid
+          products={products}
+          loading={loading}
+          emptyMessage="No products found in this category."
+        />
       </Container>
     </section>
   );

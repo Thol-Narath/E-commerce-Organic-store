@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { categoryService } from '../../services/categoryService';
 import SectionHeader from '../common/SectionHeader';
-import ImageWithFallback from '../common/ImageWithFallback';
+import CategoryScroll from '../category/CategoryScroll';
 
 export default function CategoriesSection() {
   const [categories, setCategories] = useState([]);
@@ -31,33 +30,18 @@ export default function CategoriesSection() {
         />
 
         {loading ? (
-          <div className="categories-grid-home">
-            {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className="category-home-card skeleton-shimmer" />
-            ))}
+          <div className="category-scroll-wrap">
+            <div className="category-scroll">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className="category-scroll-item">
+                  <span className="category-scroll-icon skeleton-shimmer" />
+                  <span className="skeleton-line skeleton-shimmer w-75" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
-          <div className="categories-grid-home">
-            {categories.map((cat) => (
-              <Link
-                key={cat.id}
-                to={`/categories/${cat.slug}`}
-                className="category-home-card text-decoration-none"
-              >
-                <div className="category-home-icon">
-                  <ImageWithFallback
-                    src={cat.icon_url || '/category-icons/category.svg'}
-                    alt={cat.name}
-                    className="category-home-icon-img"
-                  />
-                </div>
-                <span className="category-home-name">{cat.name}</span>
-                <span className="category-home-count">
-                  {cat.products_count || 0} Items
-                </span>
-              </Link>
-            ))}
-          </div>
+          <CategoryScroll categories={categories} />
         )}
       </div>
     </section>

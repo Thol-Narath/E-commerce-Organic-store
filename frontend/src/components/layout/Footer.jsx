@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Col, Container, Form, Row } from 'react-bootstrap';
-import { useAuth } from '../../context/AuthContext';
 import { LeafIcon, MailIcon, MapPinIcon, PhoneIcon } from '../../assets/icons';
 import { newsletterService } from '../../services/newsletterService';
 import { settingsService } from '../../services/settingsService';
@@ -23,18 +22,28 @@ const USEFUL_LINKS = [
 ];
 
 export default function Footer() {
-  const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [subscribing, setSubscribing] = useState(false);
   const [subMessage, setSubMessage] = useState('');
   const [storeName, setStoreName] = useState('Delicacy Organic');
+  const [storeLogo, setStoreLogo] = useState('');
+  const [logoHeight, setLogoHeight] = useState(42);
+  const [contact, setContact] = useState({ address: '', phone: '', email: '' });
 
   useEffect(() => {
     let active = true;
     settingsService
       .publicSettings()
       .then((data) => {
-        if (active && data?.store?.name) setStoreName(data.store.name);
+        if (!active) return;
+        if (data?.store?.name) setStoreName(data.store.name);
+        if (data?.store?.logo) setStoreLogo(data.store.logo);
+        if (data?.store?.logo_height) setLogoHeight(data.store.logo_height);
+        setContact({
+          address: data?.contact?.address || '',
+          phone: data?.contact?.phone || '',
+          email: data?.contact?.email || '',
+        });
       })
       .catch(() => {});
     return () => {
@@ -64,31 +73,55 @@ export default function Footer() {
       <Container className="py-5">
         <Row className="g-4">
 
-          {/* Column 1 – Brand */}
+          {/* Column 1 – Brand + Contact */}
           <Col lg={4} md={6}>
-            <div className="d-flex align-items-center gap-2 mb-3">
-              <LeafIcon size={32} className="footer-brand-icon" />
-              <span className="footer-brand" style={{ fontSize: '1.35rem' }}>
-                {storeName}
-              </span>
-            </div>
-            <p className="footer-text" style={{ maxWidth: 320 }}>
+            <Link to="/" className="footer-brand-row">
+              {storeLogo ? (
+                <img
+                  src={storeLogo}
+                  alt={storeName}
+                  className="footer-brand-logo"
+                  style={{ height: Math.min(logoHeight, 56) }}
+                />
+              ) : (
+                <>
+                  <LeafIcon size={32} className="footer-brand-icon" />
+                  <span className="footer-brand">{storeName}</span>
+                </>
+              )}
+            </Link>
+            <p className="footer-text mt-3" style={{ maxWidth: 320 }}>
               Welcome to {storeName} — your trusted source for 100&nbsp;% organic,
               farm-fresh produce. We partner with local growers to bring you wholesome
               fruits, vegetables and pantry staples that taste as good as they make
               you feel.
             </p>
-            <div className="d-flex gap-3 mt-3">
-              <span className="footer-contact-line" style={{ marginBottom: 0 }}>
-                <MapPinIcon size={15} /> 123 Organic Lane, Greenville
-              </span>
+            <div className="footer-contact-list">
+              {contact.address && (
+                <span className="footer-contact-line">
+                  <span className="footer-contact-icon">
+                    <MapPinIcon size={15} />
+                  </span>
+                  {contact.address}
+                </span>
+              )}
+              {contact.phone && (
+                <span className="footer-contact-line">
+                  <span className="footer-contact-icon">
+                    <PhoneIcon size={15} />
+                  </span>
+                  {contact.phone}
+                </span>
+              )}
+              {contact.email && (
+                <a href={`mailto:${contact.email}`} className="footer-contact-line footer-contact-mail">
+                  <span className="footer-contact-icon">
+                    <MailIcon size={15} />
+                  </span>
+                  {contact.email}
+                </a>
+              )}
             </div>
-            <span className="footer-contact-line" style={{ marginBottom: 0 }}>
-              <PhoneIcon size={15} /> +1 555 0100
-            </span>
-            <span className="footer-contact-line" style={{ marginBottom: 0 }}>
-              <MailIcon size={15} /> hello@delicacyorganic.com
-            </span>
           </Col>
 
           {/* Column 2 – Categories */}
@@ -122,31 +155,21 @@ export default function Footer() {
               Subscribe to receive exclusive offers, new product announcements and
               organic living tips straight to your inbox.
             </p>
-            <Form onSubmit={handleSubscribe} className="d-flex gap-2 mt-3">
+            <Form onSubmit={handleSubscribe} className="footer-newsletter-form d-flex gap-2 mt-3">
               <Form.Control
                 type="email"
                 placeholder="Your email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="flex-grow-1"
-                style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  color: '#fff',
-                }}
+                className="footer-newsletter-input flex-grow-1"
               />
-              <Button
-                type="submit"
-                variant="success"
-                disabled={subscribing}
-                style={{ whiteSpace: 'nowrap' }}
-              >
+              <Button type="submit" variant="success" disabled={subscribing}>
                 {subscribing ? 'Sending…' : 'Subscribe'}
               </Button>
             </Form>
             {subMessage && (
-              <small className="mt-2 d-block" style={{ color: '#a8d5a2' }}>
+              <small className="footer-newsletter-message d-block mt-2">
                 {subMessage}
               </small>
             )}
@@ -155,9 +178,9 @@ export default function Footer() {
       </Container>
 
       {/* ─── Payment Methods ─── */}
-      <div className="footer-payments py-3" style={{ background: '#152115', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="footer-payments py-3">
         <Container>
-          <div className="d-flex flex-wrap justify-content-center align-items-center gap-4" style={{ color: '#93a298', fontSize: '0.85rem' }}>
+          <div className="footer-payments-inner">
             <span className="d-flex align-items-center gap-1">
               <svg width="38" height="24" viewBox="0 0 38 24" fill="none">
                 <rect width="38" height="24" rx="3" fill="#1a1f71" />
@@ -200,11 +223,11 @@ export default function Footer() {
 
       {/* ─── Copyright Bar ─── */}
       <div className="footer-bottom py-3">
-        <Container className="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
+        <Container className="footer-bottom-inner">
           <span>
             &copy; {new Date().getFullYear()} {storeName}. All rights reserved.
           </span>
-          <span className="small" style={{ color: '#7a8c7f' }}>
+          <span className="small footer-note">
             Crafted with care for a healthier lifestyle.
           </span>
         </Container>

@@ -1,5 +1,24 @@
 import { Link } from 'react-router-dom';
-import { LeafIcon, ArrowRightIcon } from '../../assets/icons';
+import { Carousel } from 'react-bootstrap';
+import { ArrowRightIcon } from '../../assets/icons';
+
+const ABOUT_SLIDES = [
+  {
+    src: '/storage/category-icons/vegetables.jpg',
+    alt: 'Fresh organic vegetables from local farms',
+    caption: 'Farm-fresh organic vegetables',
+  },
+  {
+    src: '/storage/category-icons/fruits.jpg',
+    alt: 'Seasonal organic fruits',
+    caption: 'Seasonal, naturally ripened fruits',
+  },
+  {
+    src: '/storage/category-icons/leafy-greens.jpg',
+    alt: 'Organic leafy greens',
+    caption: 'Certified organic leafy greens',
+  },
+];
 
 export default function AboutUsSection() {
   return (
@@ -8,9 +27,27 @@ export default function AboutUsSection() {
         <div className="about-grid align-items-center">
           <div className="about-image-col">
             <div className="about-image-frame">
-              <div className="about-image-placeholder">
-                <LeafIcon size={80} className="about-leaf-icon" />
-              </div>
+              <Carousel
+                interval={4500}
+                controls={false}
+                indicators={true}
+                pause="hover"
+                className="about-carousel"
+              >
+                {ABOUT_SLIDES.map((slide) => (
+                  <Carousel.Item key={slide.src}>
+                    <img
+                      className="about-slide-img w-100 h-100"
+                      src={slide.src}
+                      alt={slide.alt}
+                      loading="lazy"
+                    />
+                    <Carousel.Caption className="d-none d-sm-block">
+                      <span className="about-slide-caption">{slide.caption}</span>
+                    </Carousel.Caption>
+                  </Carousel.Item>
+                ))}
+              </Carousel>
             </div>
             <div className="about-experience-badge">
               <span className="about-exp-number">15+</span>

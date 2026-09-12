@@ -16,9 +16,14 @@ export default function AdminSettings() {
   const [tagline, setTagline] = useState('');
   const [logoHeight, setLogoHeight] = useState(DEFAULT_LOGO_HEIGHT);
 
+  const [contactAddress, setContactAddress] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingBrand, setSavingBrand] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const fileInputRef = useRef(null);
@@ -29,11 +34,15 @@ export default function AdminSettings() {
       .then(([logoData, publicData]) => {
         if (cancelled) return;
         const store = publicData?.store || {};
+        const contact = publicData?.contact || {};
         setLogo(logoData.logo || null);
         setLogoPreview(logoData.logo || null);
         setStoreName(store.name || '');
         setTagline(store.tagline || '');
         setLogoHeight(store.logo_height || DEFAULT_LOGO_HEIGHT);
+        setContactAddress(contact.address || '');
+        setContactPhone(contact.phone || '');
+        setContactEmail(contact.email || '');
       })
       .catch((e) => {
         if (!cancelled) setError(normalizeError(e).message);
@@ -117,6 +126,28 @@ export default function AdminSettings() {
     }
   };
 
+  const handleSaveContact = async (e) => {
+    e.preventDefault();
+    setSavingContact(true);
+    setError('');
+    setSuccess('');
+    try {
+      const data = await adminSettingsService.updateContact({
+        address: contactAddress,
+        phone: contactPhone,
+        email: contactEmail,
+      });
+      setContactAddress(data.address || '');
+      setContactPhone(data.phone || '');
+      setContactEmail(data.email || '');
+      setSuccess('Contact information saved. The storefront footer updates immediately on refresh.');
+    } catch (err) {
+      setError(normalizeError(err).message);
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
   return (
     <div>
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
@@ -131,7 +162,8 @@ export default function AdminSettings() {
           <Spinner animation="border" variant="success" />
         </div>
       ) : (
-        <Row className="g-4">
+        <>
+          <Row className="g-4">
           {/* Store identity + logo size */}
           <Col lg={7} xl={8}>
             <Card className="shadow-sm">
@@ -266,6 +298,76 @@ export default function AdminSettings() {
             </Form>
           </Col>
         </Row>
+
+        <Row className="mt-4">
+          <Col>
+            <Card className="shadow-sm">
+              <Card.Body>
+                <h5 className="mb-1 d-flex align-items-center gap-2">
+                  <StoreIcon size={20} className="text-success" />
+                  Contact Information
+                </h5>
+                <p className="text-muted small mb-3">
+                  Address, phone and email shown in the storefront footer.
+                </p>
+
+                <Form onSubmit={handleSaveContact}>
+                  <Row className="g-3">
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Address (optional)</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={contactAddress}
+                          onChange={(e) => setContactAddress(e.target.value)}
+                          maxLength={255}
+                          placeholder="123 Organic Lane, Greenville"
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={3}>
+                      <Form.Group>
+                        <Form.Label>Phone (optional)</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={contactPhone}
+                          onChange={(e) => setContactPhone(e.target.value)}
+                          maxLength={60}
+                          placeholder="+1 555 0100"
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={3}>
+                      <Form.Group>
+                        <Form.Label>Email (optional)</Form.Label>
+                        <Form.Control
+                          type="email"
+                          value={contactEmail}
+                          onChange={(e) => setContactEmail(e.target.value)}
+                          maxLength={120}
+                          placeholder="hello@store.com"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+
+                  <Button type="submit" variant="success" className="mt-3" disabled={savingContact}>
+                    {savingContact ? (
+                      <>
+                        <Spinner as="span" animation="border" size="sm" className="me-1" /> Saving...
+                      </>
+                    ) : (
+                      <>
+                        <SaveIcon size={16} className="me-1" /> Save Contact Info
+                      </>
+                    )}
+                  </Button>
+                </Form>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+        </>
       )}
     </div>
   );

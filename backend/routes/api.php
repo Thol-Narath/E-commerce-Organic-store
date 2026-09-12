@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\PaymentMethodController;
 use App\Http\Controllers\Api\V1\PayWayWebhookController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\ReviewController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\WishlistController;
 use Illuminate\Support\Facades\Route;
@@ -101,6 +102,9 @@ Route::prefix('v1')->group(function () {
         Route::post('wishlist/items', [WishlistController::class, 'store']);
         Route::delete('wishlist/items/{wishlistItem}', [WishlistController::class, 'destroy']);
         Route::post('wishlist/items/{wishlistItem}/move-to-cart', [WishlistController::class, 'moveToCart']);
+
+        // Customer product reviews / ratings (Phase 10).
+        Route::post('reviews', [ReviewController::class, 'store']);
 
         // Customer addresses (Phase 7)
         Route::get('addresses', [AddressController::class, 'index']);
@@ -198,6 +202,9 @@ Route::prefix('v1')->group(function () {
 
             // Store branding (admin only): name, tagline, logo size.
             Route::put('settings/store-branding', [SettingsController::class, 'updateStoreBranding']);
+
+            // Store contact details (admin only): address, phone, email.
+            Route::put('settings/contact', [SettingsController::class, 'updateContact']);
         });
 
         // Staff-scoped routes: staff or admin.

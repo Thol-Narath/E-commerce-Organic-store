@@ -30,6 +30,8 @@ class ProductResource extends JsonResource
             'sku' => $this->sku,
             'unit' => $this->when($this->unit !== null, $this->unit),
             'availability' => InventoryService::stockStatusFor((int) $this->stock_quantity, (int) $this->low_stock_threshold),
+            'avg_rating' => $this->avg_rating !== null ? round((float) $this->avg_rating, 1) : null,
+            'reviews_count' => (int) ($this->reviews_count ?? 0),
             'is_featured' => $this->is_featured,
             'is_best_seller' => (bool) $this->is_best_seller,
             'status' => $this->when($this->status !== null, $this->status),

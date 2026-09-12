@@ -48,6 +48,11 @@ class SettingsController extends Controller
                 'logo_height' => (int) ($rows->get('store.logo_height')->value ?? 42),
                 'logo' => $logoUrl,
             ],
+            'contact' => [
+                'address' => $rows->get('store.contact_address')->value ?? '',
+                'phone' => $rows->get('store.contact_phone')->value ?? '',
+                'email' => $rows->get('store.contact_email')->value ?? '',
+            ],
             'shipping' => [
                 'flat_rate' => number_format((float) ($rows->get('shipping.flat_rate')->value ?? 0), 2, '.', ''),
                 'free_over' => number_format((float) ($rows->get('shipping.free_over')->value ?? 0), 2, '.', ''),
@@ -87,6 +92,38 @@ class SettingsController extends Controller
             'tagline' => $values['store.tagline'],
             'logo_height' => (int) $values['store.logo_height'],
         ], 'Store branding updated successfully.');
+    }
+
+    /**
+     * PUT /api/v1/admin/settings/contact — update the store contact details
+     * (address, phone, email) shown in the storefront footer (admin only).
+     */
+    public function updateContact(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'address' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:60'],
+            'email' => ['nullable', 'email', 'max:120'],
+        ]);
+
+        $values = [
+            'store.contact_address' => trim($validated['address'] ?? ''),
+            'store.contact_phone' => trim($validated['phone'] ?? ''),
+            'store.contact_email' => trim($validated['email'] ?? ''),
+        ];
+
+        foreach ($values as $key => $value) {
+            Setting::updateOrCreate(
+                ['key' => $key],
+                ['value' => $value, 'group' => 'store', 'is_public' => true]
+            );
+        }
+
+        return $this->success([
+            'address' => $values['store.contact_address'],
+            'phone' => $values['store.contact_phone'],
+            'email' => $values['store.contact_email'],
+        ], 'Contact information updated successfully.');
     }
 
     /**

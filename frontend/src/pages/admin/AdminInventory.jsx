@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Alert, Button, Card, Col, Form, InputGroup, Pagination, Row, Table,
+  Alert, Button, Card, Col, Form, InputGroup, Row, Table,
 } from 'react-bootstrap';
 import { adminInventoryService } from '../../services/adminInventoryService';
 import { adminCategoryService } from '../../services/adminCategoryService';
@@ -9,6 +9,7 @@ import InventoryStatusBadge from '../../components/inventory/InventoryStatusBadg
 import StockActionModal from '../../components/inventory/StockActionModal';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
+import StorePagination from '../../components/common/StorePagination';
 import usePageTitle from '../../hooks/usePageTitle';
 import { normalizeError } from '../../services/api';
 import { AlertIcon, BoxesIcon, MinusIcon, PlusIcon, SearchIcon } from '../../assets/icons';
@@ -110,14 +111,6 @@ export default function AdminInventory() {
   };
 
   const pages = pagination.last_page || 1;
-  const pageItems = [];
-  for (let p = 1; p <= pages; p += 1) {
-    pageItems.push(
-      <Pagination.Item key={p} active={p === page} onClick={() => setPage(p)}>
-        {p}
-      </Pagination.Item>
-    );
-  }
 
   return (
     <div>
@@ -297,7 +290,12 @@ export default function AdminInventory() {
           </div>
 
           {pages > 1 && (
-            <Pagination className="justify-content-center mt-4">{pageItems}</Pagination>
+            <StorePagination
+              pagination={pagination}
+              onPageChange={setPage}
+              disabled={loading}
+              ariaLabel="Inventory pagination"
+            />
           )}
         </>
       )}

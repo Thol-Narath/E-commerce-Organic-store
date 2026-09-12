@@ -22,4 +22,9 @@ export const adminSettingsService = {
     const { data } = await api.put('/admin/settings/store-branding', payload);
     return data.data;
   },
+
+  async updateContact(payload) {
+    const { data } = await api.put('/admin/settings/contact', payload);
+    return data.data;
+  },
 };

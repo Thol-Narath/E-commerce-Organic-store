@@ -7,8 +7,10 @@ import { useWishlist } from '../../context/WishlistContext';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage } from '../../utils/error';
+import { reviewService } from '../../services/reviewService';
 import { CartIcon, HeartIcon, MinusIcon, PlusIcon } from '../../assets/icons';
 import { discountPercent, formatPrice } from '../../utils/format';
+import ProductRating from './ProductRating';
 
 export default function HomeProductCard({ product }) {
   const { user } = useAuth();
@@ -20,6 +22,8 @@ export default function HomeProductCard({ product }) {
 
   const [qty, setQty] = useState(1);
   const [adding, setAdding] = useState(false);
+  const [ratedValue, setRatedValue] = useState(null);
+  const [ratingBusy, setRatingBusy] = useState(false);
 
   const imageUrl = product.primary_image?.url || product.images?.[0]?.url || null;
   const percent = discountPercent(product.price, product.compare_at_price);
@@ -57,6 +61,22 @@ export default function HomeProductCard({ product }) {
     }
   };
 
+  const handleRate = async (value) => {
+    if (!ensureAuth()) return;
+    setRatingBusy(true);
+    try {
+      await reviewService.rate(product.id, value);
+      setRatedValue(value);
+      showToast(`Thanks! You rated ${product.name} ${value} star${value > 1 ? 's' : ''}.`);
+    } catch (err) {
+      showToast(getErrorMessage(err), 'danger');
+    } finally {
+      setRatingBusy(false);
+    }
+  };
+
+  const displayRating = ratedValue ?? product.avg_rating ?? 0;
+
   return (
     <Card className="h-100 w-100 home-product-card">
       <Link to={`/products/${product.slug}`} className="home-product-card-image-link" aria-label={product.name}>
@@ -84,6 +104,16 @@ export default function HomeProductCard({ product }) {
         <Link to={`/products/${product.slug}`} className="home-product-name text-decoration-none">
           {product.name}
         </Link>
+
+        <ProductRating
+          rating={displayRating}
+          count={product.reviews_count ?? 0}
+          interactive
+          onRate={handleRate}
+          size={13}
+          className={ratingBusy ? 'product-rating-busy' : ''}
+        />
+
         <div className="home-product-price">
           <span className="price-current">{formatPrice(product.price)}</span>
           {product.compare_at_price && (

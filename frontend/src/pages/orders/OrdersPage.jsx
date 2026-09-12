@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Alert, Button, Card, Col, Pagination, Row } from 'react-bootstrap';
+import { Alert, Button, Card, Col, Row } from 'react-bootstrap';
 import OrderStatusBadge from '../../components/orders/OrderStatusBadge';
 import EmptyState from '../../components/common/EmptyState';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
 import Skeleton from '../../components/common/Skeleton';
+import StorePagination from '../../components/common/StorePagination';
 import AccountLayout from '../../layouts/AccountLayout';
 import Breadcrumbs from '../../components/common/Breadcrumbs';
 import { orderService } from '../../services/orderService';
@@ -85,14 +86,6 @@ export default function OrdersPage() {
   }, [load, page]);
 
   const pages = pagination.last_page || 1;
-  const pageItems = [];
-  for (let p = 1; p <= pages; p += 1) {
-    pageItems.push(
-      <Pagination.Item key={p} active={p === page} onClick={() => setPage(p)}>
-        {p}
-      </Pagination.Item>
-    );
-  }
 
   return (
     <AccountLayout>
@@ -208,7 +201,12 @@ export default function OrdersPage() {
           </Row>
 
           {pages > 1 && (
-            <Pagination className="justify-content-center mt-4">{pageItems}</Pagination>
+            <StorePagination
+              pagination={pagination}
+              onPageChange={setPage}
+              disabled={loading}
+              ariaLabel="Orders pagination"
+            />
           )}
         </>
       )}

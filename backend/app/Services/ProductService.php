@@ -35,7 +35,10 @@ class ProductService
     public function publicQuery(array $filters): Builder
     {
         return $this->applyFilters(
-            Product::query()->active()->with(['category:id,name,slug', 'primaryImage']),
+            Product::query()->active()
+                ->with(['category:id,name,slug', 'primaryImage'])
+                ->withAvg(['reviews as avg_rating' => fn ($q) => $q->where('status', 'approved')], 'rating')
+                ->withCount(['reviews as reviews_count' => fn ($q) => $q->where('status', 'approved')]),
             $filters,
             true
         );
