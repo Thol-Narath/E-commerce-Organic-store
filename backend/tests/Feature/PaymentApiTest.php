@@ -25,6 +25,7 @@ class PaymentApiTest extends TestCase
             'payway.merchant_id' => 'ec000002',
             'payway.api_key' => 'test-api-key',
             'payway.base_url' => 'https://checkout-sandbox.payway.com.kh/',
+            'bakong.enabled' => false,
         ]);
     }
 
@@ -51,6 +52,205 @@ class PaymentApiTest extends TestCase
         $this->getJson('/api/v1/payment-methods')
             ->assertJsonCount(1, 'data.methods')
             ->assertJsonPath('data.methods.0.method', 'aba_pay');
+    }
+
+    public function test_bakong_method_listed_when_configured_and_enabled(): void
+    {
+        $this->enableBakong();
+
+        $this->getJson('/api/v1/payment-methods')
+            ->assertStatus(200)
+            ->assertJsonPath('data.methods.3.method', 'bakong')
+            ->assertJsonPath('data.methods.3.payway_option', null);
+    }
+
+    public function test_bakong_method_hidden_when_not_configured(): void
+    {
+        config(['bakong.enabled' => true, 'bakong.access_token' => '', 'bakong.account_id' => '']);
+
+        $methods = $this->getJson('/api/v1/payment-methods')->json('data.methods');
+        $this->assertNotContains('bakong', array_column($methods, 'method'));
+    }
+
+    public function test_bakong_method_hidden_when_disabled(): void
+    {
+        $this->enableBakong();
+        config(['bakong.enabled' => false]);
+
+        $methods = $this->getJson('/api/v1/payment-methods')->json('data.methods');
+        $this->assertNotContains('bakong', array_column($methods, 'method'));
+    }
+
+    public function test_bakong_attempt_returns_qr_string_and_no_gateway_call_for_generation(): void
+    {
+        $this->enableBakong();
+
+        // Only the deeplink endpoint is called by the gateway; QR creation is local.
+        Http::fake([
+            'https://api-bakong.nbc.gov.kh/*/generate_deeplink_by_qr*' => Http::response([
+                'responseCode' => 0,
+                'responseMessage' => 'Success',
+                'data' => ['deeplink' => 'bakong://payment?ref=123'],
+            ]),
+            'https://api-bakong.nbc.gov.kh/*' => Http::response([], 500),
+        ]);
+
+        $token = $this->login($this->customer());
+        $order = $this->pendingOrder($token);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'bakong'])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.payment_method', 'bakong')
+            ->assertJsonPath('data.gateway', 'bakong')
+            ->assertJsonPath('data.payment_status', 'pending')
+            ->assertJsonPath('data.currency', 'USD')
+            ->assertJsonPath('data.deeplink', 'bakong://payment?ref=123');
+
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $order->id,
+            'payment_method' => 'bakong',
+            'gateway' => 'bakong',
+            'payment_status' => 'pending',
+            'currency' => 'USD',
+        ]);
+
+        $payment = Payment::where('order_id', $order->id)->firstOrFail();
+        $this->assertStringStartsWith('000201', $payment->qr_string);
+        $this->assertSame(md5($payment->qr_string), $payment->gateway_transaction_id);
+    }
+
+    public function test_bakong_refresh_confirms_paid_transaction(): void
+    {
+        $this->enableBakong();
+
+        $token = $this->login($this->customer());
+        $order = $this->pendingOrder($token);
+
+        Http::fake([
+            'https://api-bakong.nbc.gov.kh/*/generate_deeplink_by_qr*' => Http::response([
+                'responseCode' => 0,
+                'responseMessage' => 'Success',
+                'data' => ['deeplink' => 'bakong://x'],
+            ]),
+            'https://api-bakong.nbc.gov.kh/*/check_transaction_by_md5*' => Http::response([
+                'responseCode' => 0,
+                'responseMessage' => 'Success',
+                'data' => [
+                    'hash' => 'abc123hash456',
+                    'fromAccountId' => 'payer@aclb',
+                    'toAccountId' => 'merchant@aclb',
+                    'currency' => 'USD',
+                    'amount' => $order->total,
+                ],
+            ]),
+        ]);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'bakong'])
+            ->assertStatus(201);
+
+        $payment = $order->payments()->firstOrFail();
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments/{$payment->id}/refresh")
+            ->assertStatus(200)
+            ->assertJsonPath('data.payment_status', 'paid')
+            ->assertJsonPath('data.gateway_reference', 'abc123hash456');
+
+        $order->refresh();
+        $this->assertSame('paid', $order->payment_status);
+        $this->assertSame('confirmed', $order->status);
+    }
+
+    public function test_bakong_refresh_unpaid_transaction_stays_pending(): void
+    {
+        $this->enableBakong();
+
+        Http::fake([
+            'https://api-bakong.nbc.gov.kh/*/generate_deeplink_by_qr*' => Http::response([
+                'responseCode' => 0,
+                'responseMessage' => 'Success',
+                'data' => ['deeplink' => 'bakong://x'],
+            ]),
+            'https://api-bakong.nbc.gov.kh/*/check_transaction_by_md5*' => Http::response([
+                'responseCode' => 1,
+                'responseMessage' => 'Transaction not found',
+                'data' => null,
+            ]),
+        ]);
+
+        $token = $this->login($this->customer());
+        $order = $this->pendingOrder($token);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'bakong'])
+            ->assertStatus(201);
+
+        $payment = $order->payments()->firstOrFail();
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments/{$payment->id}/refresh")
+            ->assertStatus(200)
+            ->assertJsonPath('data.payment_status', 'pending');
+
+        $order->refresh();
+        $this->assertSame('unpaid', $order->payment_status);
+    }
+
+    public function test_bakong_refresh_rejects_amount_mismatch(): void
+    {
+        $this->enableBakong();
+
+        Http::fake([
+            'https://api-bakong.nbc.gov.kh/*/generate_deeplink_by_qr*' => Http::response([
+                'responseCode' => 0,
+                'responseMessage' => 'Success',
+                'data' => ['deeplink' => 'bakong://x'],
+            ]),
+            'https://api-bakong.nbc.gov.kh/*/check_transaction_by_md5*' => Http::response([
+                'responseCode' => 0,
+                'responseMessage' => 'Success',
+                'data' => [
+                    'hash' => 'mismatch-hash',
+                    'currency' => 'USD',
+                    'amount' => 99999.99,
+                ],
+            ]),
+        ]);
+
+        $token = $this->login($this->customer());
+        $order = $this->pendingOrder($token);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'bakong'])
+            ->assertStatus(201);
+
+        $payment = $order->payments()->firstOrFail();
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments/{$payment->id}/refresh")
+            ->assertStatus(422);
+
+        $payment->refresh();
+        $this->assertSame('pending', $payment->payment_status);
+    }
+
+    public function test_bakong_deeplink_error_still_creates_qr_payment(): void
+    {
+        $this->enableBakong();
+
+        // Deeplink endpoint fails, but QR generation is local so the payment
+        // is still created with the QR string and no deeplink.
+        Http::fake([
+            'https://api-bakong.nbc.gov.kh/*' => Http::response([], 500),
+        ]);
+
+        $token = $this->login($this->customer());
+        $order = $this->pendingOrder($token);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'bakong'])
+            ->assertStatus(201)
+            ->assertJsonPath('data.payment_method', 'bakong')
+            ->assertJsonStructure(['data' => ['qr_string']])
+            ->assertJsonPath('data.deeplink', null);
+
+        $payment = Payment::where('order_id', $order->id)->firstOrFail();
+        $this->assertSame('pending', $payment->payment_status);
     }
 
     // ------------------------------------------------------------------
@@ -497,6 +697,20 @@ class PaymentApiTest extends TestCase
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
+
+    protected function enableBakong(): void
+    {
+        config([
+            'bakong.enabled' => true,
+            'bakong.access_token' => 'test-bakong-token',
+            'bakong.account_id' => 'merchant@aclb',
+            'bakong.merchant_name' => 'Organic Store',
+            'bakong.merchant_city' => 'Phnom Penh',
+            'bakong.currency' => 'USD',
+            'bakong.base_url' => 'https://api-bakong.nbc.gov.kh/v1',
+            'bakong.lifetime' => 15,
+        ]);
+    }
 
     protected function pendingOrder(string $token): Order
     {

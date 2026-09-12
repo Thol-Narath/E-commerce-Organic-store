@@ -24,7 +24,7 @@ class CreatePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'payment_method' => ['required', 'string', Rule::in(['aba_pay', 'khqr', 'card'])],
+            'payment_method' => ['required', 'string', Rule::in(['aba_pay', 'khqr', 'card', 'bakong'])],
         ];
     }
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert, Button, Card, Col, Container, Row } from 'react-bootstrap';
 import AbaPayPayment from '../../components/payment/AbaPayPayment';
+import BakongPayment from '../../components/payment/BakongPayment';
 import CardPayment from '../../components/payment/CardPayment';
 import KhqrPayment from '../../components/payment/KhqrPayment';
 import OrderStatusBadge from '../../components/orders/OrderStatusBadge';
@@ -161,6 +162,8 @@ export default function PaymentPage() {
         return <KhqrPayment payment={activePayment} />;
       case 'card':
         return <CardPayment payment={activePayment} />;
+      case 'bakong':
+        return <BakongPayment payment={activePayment} />;
       default:
         return null;
     }
@@ -187,7 +190,7 @@ export default function PaymentPage() {
         <Link to={`/orders/${orderNumber}`} className="fw-semibold text-reset">
           {orderNumber}
         </Link>{' '}
-        securely through ABA PayWay.
+        securely through our payment system.
       </p>
 
       {wasCancelled && (
@@ -274,9 +277,10 @@ export default function PaymentPage() {
             <Card.Body>
               <h2 className="h6 text-uppercase text-muted mb-3">Secure by design</h2>
               <ul className="small mb-0 ps-3">
-                <li>Card details are entered on ABA PayWay’s secure pages, never on this store.</li>
+                <li>Card details are entered on PayWay's secure pages, never on this store.</li>
+                <li>QR payments (KHQR, Bakong) are verified directly with the payment network.</li>
                 <li>Order totals are always calculated and verified on the server.</li>
-                <li>Payments are confirmed only after a signature-verified callback.</li>
+                <li>Payments are confirmed only after gateway verification.</li>
               </ul>
             </Card.Body>
           </Card>

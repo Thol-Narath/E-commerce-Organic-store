@@ -27,7 +27,7 @@ class CategoryController extends Controller
             ->withCount(['products as products_count' => fn ($q) => $q->active()])
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->paginate($this->perPage($request, 10))
+->paginate($this->perPage($request))
             ->withQueryString();
 
         return $this->success([

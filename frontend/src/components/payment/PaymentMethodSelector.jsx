@@ -8,7 +8,8 @@ import { CardIcon, QrIcon, WalletIcon } from '../../assets/icons';
 const METHOD_META = {
   aba_pay: { Icon: QrIcon, hint: 'Scan with the ABA Mobile app, or open the payment directly in the app.' },
   khqr: { Icon: QrIcon, hint: 'Scan with any KHQR-enabled banking app.' },
-  card: { Icon: CardIcon, hint: 'Complete with any card on ABA PayWay’s secure hosted page.' },
+  card: { Icon: CardIcon, hint: 'Complete with any card on ABA PayWay\'s secure hosted page.' },
+  bakong: { Icon: QrIcon, hint: 'Pay directly via Bakong — scan with the Bakong app or any banking app.' },
 };
 
 const FALLBACK_ICON = WalletIcon;
