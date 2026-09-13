@@ -4,6 +4,7 @@ import { Alert, Badge, Button, Col, Form, Row, Spinner, Table } from 'react-boot
 import { adminProductService } from '../../services/adminProductService';
 import { adminCategoryService } from '../../services/adminCategoryService';
 import { normalizeError } from '../../services/api';
+import StorePagination from '../../components/common/StorePagination';
 
 function stockBadgeClass(qty) {
   if (qty > 50) return 'stock-badge-green';
@@ -19,6 +20,8 @@ export default function AdminProducts() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -27,22 +30,24 @@ export default function AdminProducts() {
       const data = await adminProductService.list({
         search: search || undefined,
         category_id: category || undefined,
-        per_page: 100,
+        page,
+        per_page: 20,
       });
       setItems(data.items);
+      setPagination(data.pagination || {});
     } catch (e) {
       setError(normalizeError(e).message);
     } finally {
       setLoading(false);
     }
-  }, [search, category]);
+  }, [search, category, page]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   useEffect(() => {
-    adminCategoryService.list().then(setCategories).catch(() => {});
+    adminCategoryService.list({ per_page: 50 }).then((d) => setCategories(d?.items || [])).catch(() => {});
   }, []);
 
   const toggleStatus = async (product) => {
@@ -89,11 +94,11 @@ export default function AdminProducts() {
             type="search"
             placeholder="Search products..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setPage(1); setSearch(e.target.value); }}
           />
         </Col>
         <Col md={3}>
-          <Form.Select value={category} onChange={(e) => setCategory(e.target.value)}>
+          <Form.Select value={category} onChange={(e) => { setPage(1); setCategory(e.target.value); }}>
             <option value="">All categories</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
@@ -185,6 +190,10 @@ export default function AdminProducts() {
           </Table>
         </div>
       )}
+
+      <div className="mt-3">
+        <StorePagination pagination={pagination} onPageChange={setPage} disabled={loading} />
+      </div>
     </div>
   );
 }

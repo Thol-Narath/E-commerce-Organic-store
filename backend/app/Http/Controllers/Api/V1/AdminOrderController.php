@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Http\Controllers\Api\V1;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\CancelOrderRequest;
 use App\Http\Requests\Order\StoreOrderNoteRequest;
@@ -8,6 +10,7 @@ use App\Http\Resources\AdminOrderResource;
 use App\Http\Resources\OrderNoteResource;
 use App\Models\Order;
 use App\Services\AdminOrderService;
+use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -22,7 +25,10 @@ class AdminOrderController extends Controller
 {
     use ApiResponse, Paginates;
 
-    public function __construct(private readonly AdminOrderService $orderService) {}
+    public function __construct(
+        private readonly AdminOrderService $orderService,
+        private readonly CacheService $cacheService
+    ) {}
 
     /**
      * GET /api/v1/admin/orders — paginated list with backend
@@ -60,10 +66,14 @@ class AdminOrderController extends Controller
     {
         $this->authorize('viewAny', Order::class);
 
-        return $this->success(
-            $this->orderService->statistics(),
-            'Order statistics retrieved successfully.'
+        $data = $this->cacheService->remember(
+            'orders',
+            'statistics',
+            CacheService::TTL_SHORT,
+            fn () => $this->orderService->statistics()
         );
+
+        return $this->success($data, 'Order statistics retrieved successfully.');
     }
 
     /**

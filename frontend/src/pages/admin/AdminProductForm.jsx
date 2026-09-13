@@ -46,9 +46,9 @@ export default function AdminProductForm() {
     try {
       const [product, cats] = await Promise.all([
         adminProductService.get(id),
-        adminCategoryService.list(),
+        adminCategoryService.list({ per_page: 50 }),
       ]);
-      setCategories(cats);
+      setCategories(cats?.items || []);
       setForm({
         category_id: product.category_id ?? '',
         name: product.name ?? '',
@@ -79,7 +79,7 @@ export default function AdminProductForm() {
     if (isEdit) {
       loadProduct();
     } else {
-      adminCategoryService.list().then(setCategories).catch(() => {});
+      adminCategoryService.list({ per_page: 50 }).then((d) => setCategories(d?.items || [])).catch(() => {});
     }
   }, [isEdit, loadProduct]);
 

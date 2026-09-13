@@ -14,6 +14,10 @@ return [
     |   SIT         https://sit-api-bakong.nbc.gov.kh/v1
     |   production  https://api-bakong.nbc.gov.kh/v1
     |
+    | Token renewal:
+    |   The access token is a 90-day JWT. To auto-renew it, set BAKONG_EMAIL
+    |   to the email you registered with the Bakong developer portal.
+    |
     */
 
     'base_url' => env('BAKONG_BASE_URL', 'https://api-bakong.nbc.gov.kh/v1'),
@@ -21,6 +25,8 @@ return [
     'access_token' => env('BAKONG_ACCESS_TOKEN', ''),
 
     'account_id' => env('BAKONG_ACCOUNT_ID', ''),
+
+    'email' => env('BAKONG_EMAIL', ''),
 
     'merchant_name' => env('BAKONG_MERCHANT_NAME', 'Organic Store'),
 

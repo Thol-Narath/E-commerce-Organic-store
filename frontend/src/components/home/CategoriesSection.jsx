@@ -9,7 +9,7 @@ export default function CategoriesSection() {
 
   useEffect(() => {
     let cancelled = false;
-    categoryService.getCategories().then((data) => {
+    categoryService.getCategories({ per_page: 50 }).then((data) => {
       if (!cancelled) setCategories(data || []);
     }).catch(() => {}).finally(() => {
       if (!cancelled) setLoading(false);

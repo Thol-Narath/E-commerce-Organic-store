@@ -44,7 +44,7 @@ export default function ProductListPage() {
   useEffect(() => {
     let cancelled = false;
     categoryService
-      .getCategories()
+      .getCategories({ per_page: 50 })
       .then((data) => {
         if (!cancelled) setCategories(data || []);
       })

@@ -163,17 +163,32 @@ class BakongService
     /**
      * Renew the Bakong API token.
      *
-     * The official token lives 90 days. We cache it and auto-renew on 401.
+     * The Renew Token API is called with the email used to register the
+     * developer account (the access token is a 90-day JWT, not an email).
+     * Returns a fresh token or null when renewal is not possible.
      */
     public function renewToken(): ?string
     {
-        $email = (string) config('bakong.access_token');
+        $email = (string) config('bakong.email', '');
 
-        // If the configured token is already a JWT, use the renew endpoint
-        $response = Http::timeout((int) config('bakong.timeout', 30))
-            ->post($this->baseUrl().'/renew_token', [
-                'email' => $email,
+        if ($email === '') {
+            Log::warning('Bakong token renewal skipped: BAKONG_EMAIL not configured.');
+
+            return null;
+        }
+
+        try {
+            $response = Http::timeout((int) config('bakong.timeout', 30))
+                ->post($this->baseUrl().'/renew_token', [
+                    'email' => $email,
+                ]);
+        } catch (\Exception $e) {
+            Log::error('Bakong token renewal failed', [
+                'error' => $e->getMessage(),
             ]);
+
+            return null;
+        }
 
         if ($response->failed()) {
             Log::error('Bakong token renewal failed', [
@@ -210,24 +225,32 @@ class BakongService
     {
         $token = $this->getValidToken();
 
-        $response = Http::timeout((int) config('bakong.timeout', 30))
-            ->withHeaders([
-                'Authorization' => 'Bearer '.$token,
-                'Content-Type' => 'application/json',
-            ])
-            ->$method($this->baseUrl().$path, $payload);
+        try {
+            $response = Http::timeout((int) config('bakong.timeout', 30))
+                ->withHeaders([
+                    'Authorization' => 'Bearer '.$token,
+                    'Content-Type' => 'application/json',
+                ])
+                ->$method($this->baseUrl().$path, $payload);
+        } catch (\Exception $e) {
+            throw new PaymentGatewayException('Bakong API connection failed: '.$e->getMessage());
+        }
 
         // Auto-retry once on 401 (token expired)
         if ($response->status() === 401) {
             $newToken = $this->renewToken();
 
             if ($newToken !== null) {
-                $response = Http::timeout((int) config('bakong.timeout', 30))
-                    ->withHeaders([
-                        'Authorization' => 'Bearer '.$newToken,
-                        'Content-Type' => 'application/json',
-                    ])
-                    ->$method($this->baseUrl().$path, $payload);
+                try {
+                    $response = Http::timeout((int) config('bakong.timeout', 30))
+                        ->withHeaders([
+                            'Authorization' => 'Bearer '.$newToken,
+                            'Content-Type' => 'application/json',
+                        ])
+                        ->$method($this->baseUrl().$path, $payload);
+                } catch (\Exception $e) {
+                    throw new PaymentGatewayException('Bakong API connection failed: '.$e->getMessage());
+                }
             }
         }
 

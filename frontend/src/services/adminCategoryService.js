@@ -10,7 +10,7 @@ import api from './api';
 export const adminCategoryService = {
   async list(params = {}) {
     const { data } = await api.get('/admin/categories', { params });
-    return data.data?.items ?? data.data ?? [];
+    return data.data;
   },
 
   async get(id) {

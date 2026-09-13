@@ -97,7 +97,7 @@ export default function Header() {
 
   useEffect(() => {
     categoryService
-      .getCategories()
+      .getCategories({ per_page: 50 })
       .then((data) => setCategories(data ?? []))
       .catch(() => {});
   }, []);

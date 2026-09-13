@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BannerResource;
 use App\Models\Banner;
+use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 
 class AdminBannerController extends Controller
 {
@@ -152,7 +152,7 @@ class AdminBannerController extends Controller
      */
     public function toggle(Banner $banner): JsonResponse
     {
-        $banner->update(['is_active' => !$banner->is_active]);
+        $banner->update(['is_active' => ! $banner->is_active]);
 
         return $this->success(
             new BannerResource($banner->fresh()),
@@ -175,6 +175,9 @@ class AdminBannerController extends Controller
         foreach ($validated['orders'] as $item) {
             Banner::where('id', $item['id'])->update(['sort_order' => $item['sort_order']]);
         }
+
+        // Query-builder updates skip model observers, so invalidate manually.
+        app(CacheService::class)->invalidate('content');
 
         $banners = Banner::query()
             ->orderBy('sort_order')

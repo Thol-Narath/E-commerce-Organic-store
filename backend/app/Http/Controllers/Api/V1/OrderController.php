@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, Paginates;
 
     public function __construct(private readonly OrderService $orderService) {}
 
@@ -36,7 +36,7 @@ class OrderController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $orders = $this->orderService->list($request->user(), (int) $request->integer('per_page', 15));
+        $orders = $this->orderService->list($request->user(), $this->perPage($request, 15));
 
         return $this->success([
             'orders' => OrderResource::collection($orders),

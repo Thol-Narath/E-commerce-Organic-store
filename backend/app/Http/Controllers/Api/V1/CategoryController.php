@@ -7,6 +7,7 @@ use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ProductResource;
 use App\Models\Category;
 use App\Models\Product;
+use App\Services\CacheService;
 use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,25 +16,37 @@ class CategoryController extends Controller
 {
     use ApiResponse, Paginates;
 
-    public function __construct(private readonly ProductService $productService) {}
+    public function __construct(
+        private readonly ProductService $productService,
+        private readonly CacheService $cacheService
+    ) {}
 
     /**
      * List active categories with their active product counts.
      */
     public function index(Request $request): JsonResponse
     {
-        $paginator = Category::query()
-            ->active()
-            ->withCount(['products as products_count' => fn ($q) => $q->active()])
-            ->orderBy('sort_order')
-            ->orderBy('name')
-->paginate($this->perPage($request))
-            ->withQueryString();
+        $data = $this->cacheService->remember(
+            'categories',
+            ['listing' => 'index', 'page' => (int) $request->input('page', 1), 'per_page' => $this->perPage($request)],
+            CacheService::TTL_MEDIUM,
+            function () use ($request) {
+                $paginator = Category::query()
+                    ->active()
+                    ->withCount(['products as products_count' => fn ($q) => $q->active()])
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->paginate($this->perPage($request))
+                    ->withQueryString();
 
-        return $this->success([
-            'items' => CategoryResource::collection($paginator->items()),
-            'pagination' => $this->pagination($paginator),
-        ], 'Categories retrieved successfully.');
+                return [
+                    'items' => CategoryResource::collection($paginator->items())->resolve(),
+                    'pagination' => $this->pagination($paginator),
+                ];
+            }
+        );
+
+        return $this->success($data, 'Categories retrieved successfully.');
     }
 
     /**
@@ -45,10 +58,16 @@ class CategoryController extends Controller
             return $this->error('Category not found.', null, 404);
         }
 
-        return $this->success(
-            new CategoryResource($category->loadCount(['products as products_count' => fn ($q) => $q->active()])),
-            'Category retrieved successfully.'
+        $data = $this->cacheService->remember(
+            'categories',
+            ['detail' => $category->slug, 'id' => $category->id],
+            CacheService::TTL_MEDIUM,
+            function () use ($category) {
+                return (new CategoryResource($category->loadCount(['products as products_count' => fn ($q) => $q->active()])))->resolve();
+            }
         );
+
+        return $this->success($data, 'Category retrieved successfully.');
     }
 
     /**
@@ -65,13 +84,22 @@ class CategoryController extends Controller
         ]);
         $filters['category_id'] = $category->id;
 
-        $paginator = $this->productService->publicQuery($filters)
-            ->paginate($this->perPage($request))
-            ->withQueryString();
+        $data = $this->cacheService->remember(
+            'categories',
+            ['products' => $category->slug, 'filters' => $filters, 'page' => (int) $request->input('page', 1), 'per_page' => $this->perPage($request)],
+            CacheService::TTL_SHORT,
+            function () use ($filters, $request) {
+                $paginator = $this->productService->publicQuery($filters)
+                    ->paginate($this->perPage($request))
+                    ->withQueryString();
 
-        return $this->success([
-            'items' => ProductResource::collection($paginator->items()),
-            'pagination' => $this->pagination($paginator),
-        ], 'Products retrieved successfully.');
+                return [
+                    'items' => ProductResource::collection($paginator->items())->resolve(),
+                    'pagination' => $this->pagination($paginator),
+                ];
+            }
+        );
+
+        return $this->success($data, 'Products retrieved successfully.');
     }
 }

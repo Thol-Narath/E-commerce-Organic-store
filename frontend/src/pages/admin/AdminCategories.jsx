@@ -3,11 +3,14 @@ import { Alert, Badge, Button, Form, Modal, Spinner, Table } from 'react-bootstr
 import { adminCategoryService } from '../../services/adminCategoryService';
 import { normalizeError } from '../../services/api';
 import { ImageIcon } from '../../assets/icons';
+import StorePagination from '../../components/common/StorePagination';
 
 const EMPTY = { name: '', description: '', status: 'active', sort_order: 0 };
 
 export default function AdminCategories() {
   const [categories, setCategories] = useState([]);
+  const [pagination, setPagination] = useState({});
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -24,13 +27,15 @@ export default function AdminCategories() {
     setLoading(true);
     setError('');
     try {
-      setCategories(await adminCategoryService.list());
+      const data = await adminCategoryService.list({ page, per_page: 20 });
+      setCategories(data?.items || []);
+      setPagination(data?.pagination || {});
     } catch (e) {
       setError(normalizeError(e).message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     load();
@@ -174,6 +179,10 @@ export default function AdminCategories() {
           </Table>
         </div>
       )}
+
+      <div className="mt-3">
+        <StorePagination pagination={pagination} onPageChange={setPage} disabled={loading} />
+      </div>
 
       <Modal show={showModal} onHide={() => setShowModal(false)}>
         <Modal.Header closeButton>

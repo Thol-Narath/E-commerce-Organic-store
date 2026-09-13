@@ -101,7 +101,7 @@ export default function AdminInventory() {
   }, [load, loadStats]);
 
   useEffect(() => {
-    adminCategoryService.list().then(setCategories).catch(() => {});
+    adminCategoryService.list({ per_page: 50 }).then((d) => setCategories(d?.items || [])).catch(() => {});
   }, []);
 
   const openModal = (mode, product) => setModal({ show: true, mode, product });

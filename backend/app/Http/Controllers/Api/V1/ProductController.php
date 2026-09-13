@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
+use App\Services\CacheService;
 use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,7 +14,10 @@ class ProductController extends Controller
 {
     use ApiResponse, Paginates;
 
-    public function __construct(private readonly ProductService $productService) {}
+    public function __construct(
+        private readonly ProductService $productService,
+        private readonly CacheService $cacheService
+    ) {}
 
     /**
      * List/search/filter/sort/paginate active products.
@@ -25,14 +29,23 @@ class ProductController extends Controller
             'max_price', 'featured', 'best_seller', 'discounted', 'sort',
         ]);
 
-        $paginator = $this->productService->publicQuery($filters)
-            ->paginate($this->perPage($request))
-            ->withQueryString();
+        $data = $this->cacheService->remember(
+            'products',
+            ['filters' => $filters, 'page' => (int) $request->input('page', 1), 'per_page' => $this->perPage($request)],
+            CacheService::TTL_SHORT,
+            function () use ($filters, $request) {
+                $paginator = $this->productService->publicQuery($filters)
+                    ->paginate($this->perPage($request))
+                    ->withQueryString();
 
-        return $this->success([
-            'items' => ProductResource::collection($paginator->items()),
-            'pagination' => $this->pagination($paginator),
-        ], 'Products retrieved successfully.');
+                return [
+                    'items' => ProductResource::collection($paginator->items())->resolve(),
+                    'pagination' => $this->pagination($paginator),
+                ];
+            }
+        );
+
+        return $this->success($data, 'Products retrieved successfully.');
     }
 
     /**
@@ -43,15 +56,23 @@ class ProductController extends Controller
         $filters = $request->only(['category_id', 'category_slug', 'sort']);
         $filters['featured'] = true;
 
-        $query = $this->productService->publicQuery($filters);
+        $data = $this->cacheService->remember(
+            'products',
+            ['listing' => 'featured', 'filters' => $filters, 'page' => (int) $request->input('page', 1), 'per_page' => $this->perPage($request)],
+            CacheService::TTL_SHORT,
+            function () use ($filters, $request) {
+                $paginator = $this->productService->publicQuery($filters)
+                    ->paginate($this->perPage($request))
+                    ->withQueryString();
 
-        // Featured is a curated listing; accept a larger page size but stay capped.
-        $paginator = $query->paginate($this->perPage($request))->withQueryString();
+                return [
+                    'items' => ProductResource::collection($paginator->items())->resolve(),
+                    'pagination' => $this->pagination($paginator),
+                ];
+            }
+        );
 
-        return $this->success([
-            'items' => ProductResource::collection($paginator->items()),
-            'pagination' => $this->pagination($paginator),
-        ], 'Featured products retrieved successfully.');
+        return $this->success($data, 'Featured products retrieved successfully.');
     }
 
     /**
@@ -63,8 +84,17 @@ class ProductController extends Controller
             return $this->error('Product not found.', null, 404);
         }
 
-        $product->load(['category:id,name,slug', 'primaryImage', 'images']);
+        $data = $this->cacheService->remember(
+            'products',
+            ['detail' => $product->slug, 'id' => $product->id],
+            CacheService::TTL_SHORT,
+            function () use ($product) {
+                $product->load(['category:id,name,slug', 'primaryImage', 'images']);
 
-        return $this->success(new ProductResource($product), 'Product retrieved successfully.');
+                return (new ProductResource($product))->resolve();
+            }
+        );
+
+        return $this->success($data, 'Product retrieved successfully.');
     }
 }

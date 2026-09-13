@@ -12,7 +12,7 @@ export default function MostPopularProducts() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    categoryService.getCategories().then((data) => {
+    categoryService.getCategories({ per_page: 50 }).then((data) => {
       setCategories(data || []);
     }).catch(() => {});
   }, []);

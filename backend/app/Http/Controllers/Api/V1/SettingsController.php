@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\Setting;
+use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +17,8 @@ class SettingsController extends Controller
 {
     use ApiResponse;
 
+    public function __construct(private readonly CacheService $cacheService) {}
+
     /**
      * GET /api/v1/settings/public — public store information used by the
      * customer frontend (display only). Reads key/value pairs from the
@@ -21,44 +27,53 @@ class SettingsController extends Controller
      */
     public function publicSettings(): JsonResponse
     {
-        $rows = Setting::where('is_public', true)
-            ->get()
-            ->keyBy('key');
+        $data = $this->cacheService->remember(
+            'settings',
+            'public',
+            CacheService::TTL_LONG,
+            function () {
+                $rows = Setting::where('is_public', true)
+                    ->get()
+                    ->keyBy('key');
 
-        $heroUrl = $rows->get('hero_banner.url')->value ?? null;
-        $logoPath = $rows->get('store.logo')->value ?? null;
+                $heroUrl = $rows->get('hero_banner.url')->value ?? null;
+                $logoPath = $rows->get('store.logo')->value ?? null;
 
-        if ($heroUrl && !str_starts_with($heroUrl, 'http')) {
-            $heroUrl = url('storage/' . ltrim($heroUrl, '/'));
-        }
+                if ($heroUrl && ! str_starts_with($heroUrl, 'http')) {
+                    $heroUrl = url('storage/'.ltrim($heroUrl, '/'));
+                }
 
-        $logoUrl = null;
-        if ($logoPath) {
-            $logoUrl = str_starts_with($logoPath, 'http')
-                ? $logoPath
-                : url('storage/' . ltrim($logoPath, '/'));
-        }
+                $logoUrl = null;
+                if ($logoPath) {
+                    $logoUrl = str_starts_with($logoPath, 'http')
+                        ? $logoPath
+                        : url('storage/'.ltrim($logoPath, '/'));
+                }
 
-        return $this->success([
-            'store' => [
-                'name' => $rows->get('store.name')->value ?? config('app.name', 'Organic Store'),
-                'tagline' => $rows->get('store.tagline')->value ?? '',
-                'currency' => $rows->get('store.currency')->value ?? 'USD',
-                'currency_symbol' => $rows->get('general.currency_symbol')->value ?? '$',
-                'logo_height' => (int) ($rows->get('store.logo_height')->value ?? 42),
-                'logo' => $logoUrl,
-            ],
-            'contact' => [
-                'address' => $rows->get('store.contact_address')->value ?? '',
-                'phone' => $rows->get('store.contact_phone')->value ?? '',
-                'email' => $rows->get('store.contact_email')->value ?? '',
-            ],
-            'shipping' => [
-                'flat_rate' => number_format((float) ($rows->get('shipping.flat_rate')->value ?? 0), 2, '.', ''),
-                'free_over' => number_format((float) ($rows->get('shipping.free_over')->value ?? 0), 2, '.', ''),
-            ],
-            'hero_banner_url' => $heroUrl,
-        ]);
+                return [
+                    'store' => [
+                        'name' => $rows->get('store.name')->value ?? config('app.name', 'Organic Store'),
+                        'tagline' => $rows->get('store.tagline')->value ?? '',
+                        'currency' => $rows->get('store.currency')->value ?? 'USD',
+                        'currency_symbol' => $rows->get('general.currency_symbol')->value ?? '$',
+                        'logo_height' => (int) ($rows->get('store.logo_height')->value ?? 42),
+                        'logo' => $logoUrl,
+                    ],
+                    'contact' => [
+                        'address' => $rows->get('store.contact_address')->value ?? '',
+                        'phone' => $rows->get('store.contact_phone')->value ?? '',
+                        'email' => $rows->get('store.contact_email')->value ?? '',
+                    ],
+                    'shipping' => [
+                        'flat_rate' => number_format((float) ($rows->get('shipping.flat_rate')->value ?? 0), 2, '.', ''),
+                        'free_over' => number_format((float) ($rows->get('shipping.free_over')->value ?? 0), 2, '.', ''),
+                    ],
+                    'hero_banner_url' => $heroUrl,
+                ];
+            }
+        );
+
+        return $this->success($data, 'Settings retrieved successfully.');
     }
 
     /**
@@ -134,7 +149,7 @@ class SettingsController extends Controller
         $path = Setting::where('key', 'store.logo')->value('value');
 
         return $this->success([
-            'logo' => $path ? url('storage/' . ltrim($path, '/')) : null,
+            'logo' => $path ? url('storage/'.ltrim($path, '/')) : null,
             'is_set' => (bool) $path,
         ], 'Logo retrieved successfully.');
     }
@@ -153,7 +168,7 @@ class SettingsController extends Controller
 
         // Remove the previous logo file if it lives on the public disk.
         $oldPath = Setting::where('key', 'store.logo')->value('value');
-        if ($oldPath && !str_starts_with($oldPath, 'http')) {
+        if ($oldPath && ! str_starts_with($oldPath, 'http')) {
             Storage::disk('public')->delete($oldPath);
         }
 
@@ -165,7 +180,7 @@ class SettingsController extends Controller
         );
 
         return $this->success(
-            ['logo' => url('storage/' . ltrim($path, '/')), 'is_set' => true],
+            ['logo' => url('storage/'.ltrim($path, '/')), 'is_set' => true],
             'Logo updated successfully.'
         );
     }
@@ -176,7 +191,7 @@ class SettingsController extends Controller
     public function removeLogo(): JsonResponse
     {
         $oldPath = Setting::where('key', 'store.logo')->value('value');
-        if ($oldPath && !str_starts_with($oldPath, 'http')) {
+        if ($oldPath && ! str_starts_with($oldPath, 'http')) {
             Storage::disk('public')->delete($oldPath);
         }
 
@@ -193,11 +208,20 @@ class SettingsController extends Controller
      */
     public function stats(): JsonResponse
     {
-        return $this->success([
-            'active_products' => \App\Models\Product::active()->count(),
-            'active_categories' => \App\Models\Category::active()->count(),
-            'total_reviews' => \App\Models\Review::count(),
-        ], 'Store statistics retrieved successfully.');
+        $data = $this->cacheService->remember(
+            'stats',
+            'public',
+            CacheService::TTL_MEDIUM,
+            function () {
+                return [
+                    'active_products' => Product::active()->count(),
+                    'active_categories' => Category::active()->count(),
+                    'total_reviews' => Review::count(),
+                ];
+            }
+        );
+
+        return $this->success($data, 'Store statistics retrieved successfully.');
     }
 
     /**
@@ -211,42 +235,51 @@ class SettingsController extends Controller
     {
         $days = min(max((int) $request->query('days', 30), 1), 90);
 
-        $startDate = now()->subDays($days)->startOfDay();
-        $endDate = now()->endOfDay();
+        $data = $this->cacheService->remember(
+            'revenue',
+            ['trend', 'days' => $days],
+            CacheService::TTL_SHORT,
+            function () use ($days) {
+                $startDate = now()->subDays($days)->startOfDay();
+                $endDate = now()->endOfDay();
 
-        // Group paid orders by date, sum their total.
-        $rows = DB::table('orders')
-            ->select(
-                DB::raw('DATE(placed_at) as date'),
-                DB::raw('COALESCE(SUM(total), 0) as revenue'),
-                DB::raw('COUNT(*) as order_count')
-            )
-            ->where('payment_status', 'paid')
-            ->whereNotNull('placed_at')
-            ->where('placed_at', '>=', $startDate)
-            ->where('placed_at', '<=', $endDate)
-            ->groupBy(DB::raw('DATE(placed_at)'))
-            ->orderBy('date')
-            ->get();
+                // Group paid orders by date, sum their total.
+                $rows = DB::table('orders')
+                    ->select(
+                        DB::raw('DATE(placed_at) as date'),
+                        DB::raw('COALESCE(SUM(total), 0) as revenue'),
+                        DB::raw('COUNT(*) as order_count')
+                    )
+                    ->where('payment_status', 'paid')
+                    ->whereNotNull('placed_at')
+                    ->where('placed_at', '>=', $startDate)
+                    ->where('placed_at', '<=', $endDate)
+                    ->groupBy(DB::raw('DATE(placed_at)'))
+                    ->orderBy('date')
+                    ->get();
 
-        // Fill in missing dates with zero revenue so charts draw a continuous line.
-        $map = $rows->keyBy('date');
-        $data = [];
-        for ($d = $startDate->copy(); $d <= $endDate; $d->addDay()) {
-            $key = $d->format('Y-m-d');
-            $row = $map->get($key);
-            $data[] = [
-                'date' => $key,
-                'revenue' => $row ? (float) $row->revenue : 0,
-                'order_count' => $row ? (int) $row->order_count : 0,
-            ];
-        }
+                // Fill in missing dates with zero revenue so charts draw a continuous line.
+                $map = $rows->keyBy('date');
+                $data = [];
+                for ($d = $startDate->copy(); $d <= $endDate; $d->addDay()) {
+                    $key = $d->format('Y-m-d');
+                    $row = $map->get($key);
+                    $data[] = [
+                        'date' => $key,
+                        'revenue' => $row ? (float) $row->revenue : 0,
+                        'order_count' => $row ? (int) $row->order_count : 0,
+                    ];
+                }
 
-        return $this->success([
-            'days' => $days,
-            'data' => $data,
-            'total_revenue' => $data ? number_format(array_sum(array_column($data, 'revenue')), 2, '.', '') : '0.00',
-            'total_orders' => array_sum(array_column($data, 'order_count')),
-        ], 'Revenue trend retrieved successfully.');
+                return [
+                    'days' => $days,
+                    'data' => $data,
+                    'total_revenue' => $data ? number_format(array_sum(array_column($data, 'revenue')), 2, '.', '') : '0.00',
+                    'total_orders' => array_sum(array_column($data, 'order_count')),
+                ];
+            }
+        );
+
+        return $this->success($data, 'Revenue trend retrieved successfully.');
     }
 }

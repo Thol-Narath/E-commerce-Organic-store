@@ -34,7 +34,7 @@ export default function AdminBanners() {
     setLoading(true);
     setError('');
     try {
-      setBanners(await adminBannerService.list());
+      setBanners(await adminBannerService.list({ per_page: 50 }));
     } catch (e) {
       setError(normalizeError(e).message);
     } finally {
