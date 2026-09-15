@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightIcon } from '../../assets/icons';
+import { ArrowRightIcon, LeafIcon } from '../../assets/icons';
 import { bannerService } from '../../services/bannerService';
-
-const COLORS = ['#f97316', '#16a34a', '#ea580c'];
+import SectionHeader from '../common/SectionHeader';
 
 export default function PromoBannerRow() {
   const [banners, setBanners] = useState([]);
@@ -21,10 +20,10 @@ export default function PromoBannerRow() {
 
   return (
     <section className="section-promo-row py-5">
-      <div className="container-lg">
+      <div className="container-lg px-lg-4">
+        <SectionHeader title="Special Offers" subtitle="Fresh picks, better prices" />
         <div className="promo-row-grid">
-          {promos.map((promo, i) => {
-            const bg = promo.bg_color || COLORS[i % COLORS.length];
+          {promos.map((promo) => {
             const link = promo.link_url || promo.target_url || '/shop';
             const label = promo.cta_label || promo.cta_text || 'Shop Now';
             const discount = promo.discount_percent || promo.discount_badge;
@@ -33,21 +32,24 @@ export default function PromoBannerRow() {
               <Link
                 key={promo.id}
                 to={link}
-                className="promo-card-home"
-                style={{ background: bg }}
+                className={`promo-card-home${promo.image_url ? ' promo-card-home--img' : ''}`}
                 aria-label={promo.title}
               >
                 {discount && (
-                  <span className="promo-home-discount" aria-hidden="true">
-                    {typeof discount === 'number' ? `${discount}%` : discount}
+                  <span className="promo-home-badge">
+                    <LeafIcon size={13} />
+                    {typeof discount === 'number' ? `${discount}% OFF` : discount}
                   </span>
                 )}
+                {promo.image_url && (
+                  <img
+                    src={promo.image_url}
+                    alt={promo.title}
+                    className="promo-home-img"
+                    loading="lazy"
+                  />
+                )}
                 <div className="promo-card-home-body">
-                  {discount && (
-                    <span className="promo-home-badge">
-                      {typeof discount === 'number' ? `${discount}% OFF` : discount}
-                    </span>
-                  )}
                   <h3 className="promo-home-title">{promo.title}</h3>
                   {promo.subtitle && (
                     <p className="promo-home-subtitle">{promo.subtitle}</p>

@@ -133,8 +133,8 @@ export default function Header() {
 
   return (
     <header className="customer-header main-header">
-      {/* ===== Top Bar (green) ===== */}
-      <div className="dl-top-bar d-none d-md-flex">
+      {/* ===== Top Bar (subtle green) ===== */}
+      <div className="dl-top-bar">
         <div className="dl-top-bar-inner">
           <span className="dl-top-brand">
             <LeafIcon size={14} className="me-1" />
@@ -144,8 +144,9 @@ export default function Header() {
           <NavDropdown
             title={
               <span className="dl-location-text">
-                <span className="dl-location-label">Delivery Location</span>
+                <span className="dl-location-label">Deliver to</span>
                 <span className="dl-location-value">{deliveryLocation}</span>
+                <ChevronDownIcon size={12} />
               </span>
             }
             id="dl-location-dropdown"

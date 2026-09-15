@@ -19,12 +19,12 @@ export default function BestSellingProducts() {
   }, []);
 
   return (
-    <section className="section-best-selling py-5 bg-light">
+    <section className="section-best-selling py-5 best-selling-section">
       <Container>
         <SectionHeader
-          title="Best Selling Products"
+          title="Best Selling"
           subtitle="Our most popular items loved by customers"
-          link="/shop"
+          link="/best-sales"
           linkText="View All"
         />
 

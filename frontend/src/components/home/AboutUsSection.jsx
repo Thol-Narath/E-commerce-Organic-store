@@ -79,7 +79,7 @@ export default function AboutUsSection() {
                 <span>Free Delivery on Orders Over $50</span>
               </div>
             </div>
-            <Link to="/about" className="btn btn-custom-orange mt-3">
+            <Link to="/about" className="btn btn-success about-learn-btn mt-3">
               Learn More <ArrowRightIcon size={16} />
             </Link>
           </div>

@@ -23,8 +23,8 @@ export default function CategoriesSection() {
     <section className="section-categories-home py-5">
       <div className="container-lg">
         <SectionHeader
-          title="Browse Our Hottest Categories"
-          subtitle="Explore our wide range of organic products"
+          title="Shop by Category"
+          subtitle="Everything fresh, natural, and ready for your table."
           link="/categories"
           linkText="See All"
         />

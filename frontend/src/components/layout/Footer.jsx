@@ -1,30 +1,67 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Col, Container, Form, Row } from 'react-bootstrap';
+import { Container, Row, Col } from 'react-bootstrap';
 import { LeafIcon, MailIcon, MapPinIcon, PhoneIcon } from '../../assets/icons';
-import { newsletterService } from '../../services/newsletterService';
 import { settingsService } from '../../services/settingsService';
 
-const CATEGORIES = [
-  { name: 'Fresh Vegetables', slug: 'fresh-vegetables' },
-  { name: 'Organic Fruits', slug: 'organic-fruits' },
-  { name: 'Dairy & Eggs', slug: 'dairy-eggs' },
-  { name: 'Bread & Bakery', slug: 'bread-bakery' },
-  { name: 'Beverages', slug: 'beverages' },
+const QUICK_LINKS = [
+  { label: 'Home', to: '/' },
+  { label: 'Shop', to: '/shop' },
+  { label: 'Best Sales', to: '/best-sales' },
+  { label: 'Promotions', to: '/promotions' },
+  { label: 'Contact', to: '/contact' },
 ];
 
-const USEFUL_LINKS = [
-  { label: 'About Us', to: '/about' },
-  { label: 'Contact', to: '/contact' },
-  { label: 'FAQ', to: '/faq' },
-  { label: 'Privacy Policy', to: '/privacy' },
-  { label: 'Terms of Service', to: '/terms' },
+const CUSTOMER_SERVICE = [
+  { label: 'My Account', to: '/account/profile' },
+  { label: 'Orders', to: '/account/orders' },
+  { label: 'Wishlist', to: '/account/wishlist' },
+  { label: 'Shopping Cart', to: '/cart' },
+  { label: 'Help Center', to: '/contact' },
+];
+
+function SocialFacebook({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M13.5 21v-7h2.4l.4-3h-2.8V9.1c0-.9.3-1.5 1.6-1.5H16.3V4.9c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.4-4 4.1V11H7.5v3h2.4v7h3.6Z" />
+    </svg>
+  );
+}
+
+function SocialInstagram({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function SocialTwitter({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M18.2 3h3l-6.8 7.7L22.4 21h-6.3l-4.9-6.3L5.6 21h-3l7.2-8.2L1.7 3h6.4l4.4 5.8L18.2 3Zm-1.1 16.2h1.7L7.1 4.7H5.3l11.8 14.5Z" />
+    </svg>
+  );
+}
+
+function SocialYoutube({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M21.6 7.2a2.5 2.5 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.5 2.5 0 0 0 2.4 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.8 1.8c1.6.4 7.8.4 7.8.4s6.2 0 7.8-.4a2.5 2.5 0 0 0 1.8-1.8A26 26 0 0 0 22 12a26 26 0 0 0-.4-4.8ZM10 15.2V8.8L15.5 12 10 15.2Z" />
+    </svg>
+  );
+}
+
+const SOCIALS = [
+  { Icon: SocialFacebook, label: 'Facebook' },
+  { Icon: SocialInstagram, label: 'Instagram' },
+  { Icon: SocialTwitter, label: 'Twitter' },
+  { Icon: SocialYoutube, label: 'YouTube' },
 ];
 
 export default function Footer() {
-  const [email, setEmail] = useState('');
-  const [subscribing, setSubscribing] = useState(false);
-  const [subMessage, setSubMessage] = useState('');
   const [storeName, setStoreName] = useState('Delicacy Organic');
   const [storeLogo, setStoreLogo] = useState('');
   const [logoHeight, setLogoHeight] = useState(42);
@@ -51,29 +88,11 @@ export default function Footer() {
     };
   }, []);
 
-  const handleSubscribe = async (e) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setSubscribing(true);
-    setSubMessage('');
-    try {
-      await newsletterService.subscribe(email);
-      setSubMessage('Thank you for subscribing!');
-      setEmail('');
-    } catch {
-      setSubMessage('Something went wrong. Please try again.');
-    } finally {
-      setSubscribing(false);
-    }
-  };
-
   return (
     <footer className="customer-footer mt-auto">
-      {/* ─── Main Footer ─── */}
       <Container className="py-5">
-        <Row className="g-4">
-
-          {/* Column 1 – Brand + Contact */}
+        <Row className="g-4 g-lg-5">
+          {/* Column 1 – Brand + description */}
           <Col lg={4} md={6}>
             <Link to="/" className="footer-brand-row">
               {storeLogo ? (
@@ -96,6 +115,35 @@ export default function Footer() {
               fruits, vegetables and pantry staples that taste as good as they make
               you feel.
             </p>
+          </Col>
+
+          {/* Column 2 – Quick Links */}
+          <Col lg={2} md={6} xs={6}>
+            <h2 className="footer-heading">Quick Links</h2>
+            <ul className="footer-links list-unstyled">
+              {QUICK_LINKS.map((link) => (
+                <li key={link.to}>
+                  <Link to={link.to}>{link.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </Col>
+
+          {/* Column 3 – Customer Service */}
+          <Col lg={2} md={6} xs={6}>
+            <h2 className="footer-heading">Customer Service</h2>
+            <ul className="footer-links list-unstyled">
+              {CUSTOMER_SERVICE.map((link) => (
+                <li key={`${link.label}-${link.to}`}>
+                  <Link to={link.to}>{link.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </Col>
+
+          {/* Column 4 – Contact */}
+          <Col lg={4} md={6}>
+            <h2 className="footer-heading">Get in Touch</h2>
             <div className="footer-contact-list">
               {contact.address && (
                 <span className="footer-contact-line">
@@ -106,12 +154,12 @@ export default function Footer() {
                 </span>
               )}
               {contact.phone && (
-                <span className="footer-contact-line">
+                <a href={`tel:${contact.phone}`} className="footer-contact-line footer-contact-link">
                   <span className="footer-contact-icon">
                     <PhoneIcon size={15} />
                   </span>
                   {contact.phone}
-                </span>
+                </a>
               )}
               {contact.email && (
                 <a href={`mailto:${contact.email}`} className="footer-contact-line footer-contact-mail">
@@ -122,57 +170,13 @@ export default function Footer() {
                 </a>
               )}
             </div>
-          </Col>
-
-          {/* Column 2 – Categories */}
-          <Col lg={2} md={6} xs={6}>
-            <h2 className="footer-heading">Categories</h2>
-            <ul className="footer-links list-unstyled">
-              {CATEGORIES.map((cat) => (
-                <li key={cat.slug}>
-                  <Link to={`/categories/${cat.slug}`}>{cat.name}</Link>
-                </li>
+            <div className="footer-socials">
+              {SOCIALS.map(({ Icon, label }) => (
+                <a key={label} href="#" className="footer-social" aria-label={label} onClick={(e) => e.preventDefault()}>
+                  <Icon />
+                </a>
               ))}
-            </ul>
-          </Col>
-
-          {/* Column 3 – Useful Links */}
-          <Col lg={2} md={6} xs={6}>
-            <h2 className="footer-heading">Useful Links</h2>
-            <ul className="footer-links list-unstyled">
-              {USEFUL_LINKS.map((link) => (
-                <li key={link.to}>
-                  <Link to={link.to}>{link.label}</Link>
-                </li>
-              ))}
-            </ul>
-          </Col>
-
-          {/* Column 4 – Newsletter */}
-          <Col lg={4} md={6}>
-            <h2 className="footer-heading">Newsletter</h2>
-            <p className="footer-text" style={{ maxWidth: 300 }}>
-              Subscribe to receive exclusive offers, new product announcements and
-              organic living tips straight to your inbox.
-            </p>
-            <Form onSubmit={handleSubscribe} className="footer-newsletter-form d-flex gap-2 mt-3">
-              <Form.Control
-                type="email"
-                placeholder="Your email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="footer-newsletter-input flex-grow-1"
-              />
-              <Button type="submit" variant="success" disabled={subscribing}>
-                {subscribing ? 'Sending…' : 'Subscribe'}
-              </Button>
-            </Form>
-            {subMessage && (
-              <small className="footer-newsletter-message d-block mt-2">
-                {subMessage}
-              </small>
-            )}
+            </div>
           </Col>
         </Row>
       </Container>
@@ -182,14 +186,14 @@ export default function Footer() {
         <Container>
           <div className="footer-payments-inner">
             <span className="d-flex align-items-center gap-1">
-              <svg width="38" height="24" viewBox="0 0 38 24" fill="none">
+              <svg width="38" height="24" viewBox="0 0 38 24" fill="none" aria-hidden="true">
                 <rect width="38" height="24" rx="3" fill="#1a1f71" />
                 <text x="5" y="16" fill="#fff" fontSize="9" fontWeight="bold" fontFamily="Arial">VISA</text>
               </svg>
               Visa
             </span>
             <span className="d-flex align-items-center gap-1">
-              <svg width="38" height="24" viewBox="0 0 38 24" fill="none">
+              <svg width="38" height="24" viewBox="0 0 38 24" fill="none" aria-hidden="true">
                 <rect width="38" height="24" rx="3" fill="#252525" />
                 <circle cx="15" cy="12" r="7" fill="#EB001B" opacity="0.85" />
                 <circle cx="23" cy="12" r="7" fill="#F79E1B" opacity="0.85" />
@@ -197,21 +201,21 @@ export default function Footer() {
               Mastercard
             </span>
             <span className="d-flex align-items-center gap-1">
-              <svg width="38" height="24" viewBox="0 0 38 24" fill="none">
+              <svg width="38" height="24" viewBox="0 0 38 24" fill="none" aria-hidden="true">
                 <rect width="38" height="24" rx="3" fill="#253B80" />
                 <text x="5" y="15" fill="#fff" fontSize="7" fontWeight="bold" fontFamily="Arial">PayPal</text>
               </svg>
               PayPal
             </span>
             <span className="d-flex align-items-center gap-1">
-              <svg width="38" height="24" viewBox="0 0 38 24" fill="none">
+              <svg width="38" height="24" viewBox="0 0 38 24" fill="none" aria-hidden="true">
                 <rect width="38" height="24" rx="3" fill="#000" />
                 <text x="4" y="15" fill="#fff" fontSize="6" fontWeight="600" fontFamily="Arial"> Pay</text>
               </svg>
               Apple Pay
             </span>
             <span className="d-flex align-items-center gap-1">
-              <svg width="38" height="24" viewBox="0 0 38 24" fill="none">
+              <svg width="38" height="24" viewBox="0 0 38 24" fill="none" aria-hidden="true">
                 <rect width="38" height="24" rx="3" fill="#fff" stroke="#ddd" />
                 <text x="3" y="15" fill="#5F6368" fontSize="6" fontWeight="600" fontFamily="Arial">G Pay</text>
               </svg>
@@ -221,15 +225,16 @@ export default function Footer() {
         </Container>
       </div>
 
-      {/* ─── Copyright Bar ─── */}
+      {/* ─── Bottom Bar ─── */}
       <div className="footer-bottom py-3">
         <Container className="footer-bottom-inner">
           <span>
             &copy; {new Date().getFullYear()} {storeName}. All rights reserved.
           </span>
-          <span className="small footer-note">
-            Crafted with care for a healthier lifestyle.
-          </span>
+          <div className="footer-legal">
+            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/terms">Terms &amp; Conditions</Link>
+          </div>
         </Container>
       </div>
     </footer>

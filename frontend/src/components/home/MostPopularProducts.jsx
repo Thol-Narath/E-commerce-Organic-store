@@ -21,7 +21,7 @@ export default function MostPopularProducts() {
     let cancelled = false;
     setLoading(true);
     setProducts([]);
-    const params = { sort: 'best_selling', per_page: 10 };
+    const params = { featured: 1, per_page: 10 };
     if (activeTab !== 'all') {
       params.category_slug = activeTab;
     }
@@ -39,8 +39,10 @@ export default function MostPopularProducts() {
     <section className="section-popular py-5">
       <Container>
         <SectionHeader
-          title="Most Popular Products"
-          subtitle="Discover what our customers love most"
+          title="Fresh Picks for You"
+          subtitle="Hand-picked organic favourites our customers love most"
+          link="/shop"
+          linkText="View All"
         />
 
         <div className="popular-tabs mb-4">

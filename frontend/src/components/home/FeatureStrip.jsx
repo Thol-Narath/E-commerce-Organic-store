@@ -1,10 +1,10 @@
-import { TruckIcon, ShieldIcon, LeafIcon, TagIcon } from '../../assets/icons';
+import { TruckIcon, ShieldIcon, LeafIcon, LockIcon } from '../../assets/icons';
 
 const FEATURES = [
-  { icon: LeafIcon, title: 'Organic Farm Source', desc: '100% certified organic produce' },
-  { icon: TruckIcon, title: 'Free Home Delivery', desc: 'On orders over $50' },
-  { icon: ShieldIcon, title: 'Quality Guaranteed', desc: 'Freshness you can trust' },
-  { icon: TagIcon, title: 'Weekly Promotions', desc: 'Save big every week' },
+  { icon: LeafIcon, title: 'Fresh & Organic', desc: 'Carefully selected products' },
+  { icon: TruckIcon, title: 'Fast Delivery', desc: 'Fresh groceries delivered quickly' },
+  { icon: LockIcon, title: 'Secure Payment', desc: 'Safe and convenient checkout' },
+  { icon: ShieldIcon, title: 'Quality Guarantee', desc: 'We care about product quality' },
 ];
 
 export default function FeatureStrip() {
