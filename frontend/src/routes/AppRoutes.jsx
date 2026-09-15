@@ -34,6 +34,10 @@ import AdminInventory from '../pages/admin/AdminInventory';
 import AdminInventoryDetail from '../pages/admin/AdminInventoryDetail';
 import AdminBanners from '../pages/admin/AdminBanners';
 import AdminSettings from '../pages/admin/AdminSettings';
+import AdminSuppliers from '../pages/admin/AdminSuppliers';
+import AdminSupplierOrder from '../pages/admin/AdminSupplierOrder';
+import AdminSupplierOrders from '../pages/admin/AdminSupplierOrders';
+import AdminSupplierOrderDetail from '../pages/admin/AdminSupplierOrderDetail';
 
 /** Redirect /orders/:orderNumber → /account/orders/:orderNumber */
 function OrderRedirect() {
@@ -181,6 +185,11 @@ export default function AppRoutes() {
         <Route path="products/:id/edit" element={<AdminProductForm />} />
         <Route path="inventory" element={<AdminInventory />} />
         <Route path="inventory/:id" element={<AdminInventoryDetail />} />
+        <Route path="suppliers" element={<AdminSuppliers />} />
+        <Route path="suppliers/:supplierId/order" element={<AdminSupplierOrder />} />
+        <Route path="suppliers/order" element={<AdminSupplierOrder />} />
+        <Route path="supplier-orders" element={<AdminSupplierOrders />} />
+        <Route path="supplier-orders/:id" element={<AdminSupplierOrderDetail />} />
         <Route path="categories" element={<AdminCategories />} />
         <Route path="banners" element={<AdminBanners />} />
         <Route path="settings" element={<AdminSettings />} />

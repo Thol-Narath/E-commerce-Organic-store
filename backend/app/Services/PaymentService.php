@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -74,7 +75,7 @@ class PaymentService
         }
 
         if ($enum->isPayway()) {
-            return (bool) config('payway.methods.'.$method, false);
+            return $this->payWay->isConfigured() && (bool) config('payway.methods.'.$method, false);
         }
 
         if ($enum->isBakong()) {
@@ -153,10 +154,32 @@ class PaymentService
             .str_pad((string) $payment->id, 6, '0', STR_PAD_LEFT);
         $payment->save();
 
-        if ($enum->isBakong()) {
-            $result = $this->createBakongPayment($order, $payment);
-        } else {
-            $result = $this->payWay->createPayment($this->gatewayPayload($user, $order, $payment, $enum));
+        try {
+            if ($enum->isBakong()) {
+                $result = $this->createBakongPayment($order, $payment);
+            } else {
+                $result = $this->payWay->createPayment($this->gatewayPayload($user, $order, $payment, $enum));
+            }
+        } catch (PaymentGatewayException $e) {
+            Log::error('Payment gateway call failed', [
+                'payment_id' => $payment->id,
+                'gateway' => $gateway,
+                'method' => $enum->value,
+                'order_number' => $order->order_number,
+                'error' => $e->getMessage(),
+            ]);
+            $this->markFailed($payment);
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Unexpected payment creation error', [
+                'payment_id' => $payment->id,
+                'gateway' => $gateway,
+                'method' => $enum->value,
+                'order_number' => $order->order_number,
+                'error' => $e->getMessage(),
+            ]);
+            $this->markFailed($payment);
+            throw new PaymentGatewayException('An unexpected error occurred while creating the payment.');
         }
 
         $payment->gateway_transaction_id = $result['gateway_transaction_id'];

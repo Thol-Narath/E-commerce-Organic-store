@@ -239,6 +239,17 @@ export default function AdminInventory() {
                     </td>
                     <td className="text-end">
                       <div className="d-inline-flex gap-1 flex-wrap justify-content-end">
+                        {(p.stock_status === 'low_stock' || p.stock_status === 'out_of_stock') && (
+                          <Button
+                            size="sm"
+                            variant="success"
+                            as={Link}
+                            to="/admin/suppliers/order"
+                            title="Order stock from supplier"
+                          >
+                            Reorder
+                          </Button>
+                        )}
                         <Button size="sm" variant="outline-success" title="Add stock" onClick={() => openModal('add', p)}>
                           <PlusIcon size={15} />
                         </Button>
@@ -274,6 +285,16 @@ export default function AdminInventory() {
                     </div>
                   </div>
                   <div className="d-flex gap-2 flex-wrap">
+                    {(p.stock_status === 'low_stock' || p.stock_status === 'out_of_stock') && (
+                      <Button
+                        size="sm"
+                        variant="success"
+                        as={Link}
+                        to="/admin/suppliers/order"
+                      >
+                        Reorder
+                      </Button>
+                    )}
                     <Button size="sm" variant="outline-success" onClick={() => openModal('add', p)}>
                       <PlusIcon size={15} /> Add
                     </Button>

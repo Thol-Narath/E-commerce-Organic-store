@@ -201,6 +201,9 @@ export default function AdminProductForm() {
               <Form.Control.Feedback type="invalid">{fieldErrors.sku}</Form.Control.Feedback>
             </Form.Group>
           </Col>
+        </Row>
+
+        <Row className="mb-3">
           <Col md={6}>
             <Form.Group controlId="product-category">
               <Form.Label>Category *</Form.Label>

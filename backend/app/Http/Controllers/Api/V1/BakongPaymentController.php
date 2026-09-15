@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\Services\BakongService;
@@ -11,7 +10,7 @@ class BakongPaymentController extends Controller
     public function create(Request $request)
     {
         $request->validate([
-            'amount' => 'required|numeric|min:0.01',
+            'amount' => 'required|numeric|min:0.00',
         ]);
 
         $amount = $request->amount;

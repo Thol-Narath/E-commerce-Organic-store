@@ -159,14 +159,22 @@ class OrderService
     /**
      * The customer's orders, newest first, paginated for the UI.
      */
-    public function list(User $user, int $perPage = 15): LengthAwarePaginator
-    {
-        return Order::with($this->eagerLoads())
-            ->where('user_id', $user->id)
-            ->orderByDesc('placed_at')
-            ->orderByDesc('id')
-            ->paginate(max(1, min(50, $perPage)));
-    }
+    // public function list(User $user, int $perPage = 15): LengthAwarePaginator
+    // {
+    //     return Order::with($this->eagerLoads())
+    //         ->where('user_id', $user->id)
+    //         ->orderByDesc('placed_at')
+    //         ->orderByDesc('id')
+    //         ->paginate(max(1, min(50, $perPage)));
+    // }
+public function list(int $limit = 10)
+{
+    return Order::query()
+        ->with(['customer', 'orderDetails.product'])
+        ->latest()
+        ->paginate($limit);
+}
+
 
     /**
      * A single order by its human-readable order number (own orders only).

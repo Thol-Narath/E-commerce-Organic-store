@@ -71,6 +71,30 @@ export function TruckIcon(props) {
   );
 }
 
+export function FactoryIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M2 20V8.5L8 12V8.5l6 3.5v-3l8 4V20H2Z" />
+      <path d="M2 20h20" />
+      <path d="M6 20v-4M10 20v-4M14 20v-4M18 20v-4" />
+      <circle cx="6.5" cy="6" r="1.2" />
+      <circle cx="10" cy="4" r="1.2" />
+      <circle cx="13.5" cy="6" r="1.2" />
+      <path d="M4 10.5v-2M9 7.5V6M13.5 9V7" />
+    </Icon>
+  );
+}
+
+export function ClipboardListIcon(props) {
+  return (
+    <Icon {...props}>
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M9 3.5V2h6v1.5" />
+      <path d="M9 11h6M9 15h6M9 19h4" />
+    </Icon>
+  );
+}
+
 export function ShieldIcon(props) {
   return (
     <Icon {...props}>

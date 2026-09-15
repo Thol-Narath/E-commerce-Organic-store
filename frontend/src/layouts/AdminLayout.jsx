@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Nav } from 'react-bootstrap';
-import { StoreIcon, TagIcon, TruckIcon, LeafIcon, BoxesIcon, ExternalLinkIcon, ImageIcon, SettingsIcon } from '../assets/icons';
+import { StoreIcon, TagIcon, TruckIcon, LeafIcon, BoxesIcon, ExternalLinkIcon, ImageIcon, SettingsIcon, FactoryIcon } from '../assets/icons';
 import { settingsService } from '../services/settingsService';
 
 /**
@@ -25,6 +25,7 @@ export default function AdminLayout() {
     { to: '/admin/orders', label: 'Orders', icon: TruckIcon, match: (p) => p.startsWith('/admin/orders') },
     { to: '/admin/products', label: 'Products', icon: StoreIcon, match: (p) => p.startsWith('/admin/products') },
     { to: '/admin/inventory', label: 'Inventory', icon: BoxesIcon, match: (p) => p === '/admin/inventory' || p.startsWith('/admin/inventory/') },
+    { to: '/admin/suppliers', label: 'Suppliers', icon: FactoryIcon, match: (p) => p.startsWith('/admin/suppliers') || p.startsWith('/admin/supplier-orders') },
     { to: '/admin/categories', label: 'Categories', icon: TagIcon, match: (p) => p.startsWith('/admin/categories') },
     { to: '/admin/banners', label: 'Banners', icon: ImageIcon, match: (p) => p.startsWith('/admin/banners') },
     { to: '/admin/settings', label: 'Settings', icon: SettingsIcon, match: (p) => p.startsWith('/admin/settings') },

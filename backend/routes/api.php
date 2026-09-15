@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AdminCategoryController;
 use App\Http\Controllers\Api\V1\AdminOrderController;
 use App\Http\Controllers\Api\V1\AdminProductController;
 use App\Http\Controllers\Api\V1\AdminBannerController;
+use App\Http\Controllers\Api\V1\AdminSupplierController;
 use App\Http\Controllers\Api\V1\AddressController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CartController;
@@ -176,6 +177,23 @@ Route::prefix('v1')->group(function () {
             Route::delete('banners/{banner}', [AdminBannerController::class, 'destroy']);
             Route::patch('banners/{banner}/toggle', [AdminBannerController::class, 'toggle']);
             Route::post('banners/reorder', [AdminBannerController::class, 'reorder']);
+
+            // Suppliers (admin only): supplier CRUD + purchase orders to
+            // restock low-inventory products from suppliers.
+            Route::get('suppliers/options', [AdminSupplierController::class, 'options']);
+            Route::get('suppliers', [AdminSupplierController::class, 'index']);
+            Route::post('suppliers', [AdminSupplierController::class, 'store']);
+            Route::get('suppliers/{supplier}', [AdminSupplierController::class, 'show']);
+            Route::put('suppliers/{supplier}', [AdminSupplierController::class, 'update']);
+            Route::delete('suppliers/{supplier}', [AdminSupplierController::class, 'destroy']);
+            Route::patch('suppliers/{supplier}/toggle', [AdminSupplierController::class, 'toggle']);
+
+            Route::get('supplier-orders', [AdminSupplierController::class, 'orders']);
+            Route::post('supplier-orders', [AdminSupplierController::class, 'createOrder']);
+            Route::get('supplier-orders/{order}', [AdminSupplierController::class, 'showOrder'])->whereNumber('order');
+            Route::post('supplier-orders/{order}/place', [AdminSupplierController::class, 'placeOrder'])->whereNumber('order');
+            Route::post('supplier-orders/{order}/receive', [AdminSupplierController::class, 'receiveOrder'])->whereNumber('order');
+            Route::post('supplier-orders/{order}/cancel', [AdminSupplierController::class, 'cancelOrder'])->whereNumber('order');
         });
 
         // Admin-scoped routes: admin only.

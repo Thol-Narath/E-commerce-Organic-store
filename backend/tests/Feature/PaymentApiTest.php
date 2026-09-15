@@ -331,7 +331,7 @@ class PaymentApiTest extends TestCase
             ->assertJsonPath('message', 'The selected payment method is not available.');
     }
 
-    public function test_gateway_unavailable_returns_502_and_payment_stays_pending(): void
+    public function test_gateway_unavailable_returns_502_and_payment_marks_failed(): void
     {
         Http::fake(['https://checkout-sandbox.payway.com.kh/*' => Http::response([], 500)]);
 
@@ -341,8 +341,10 @@ class PaymentApiTest extends TestCase
         $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'aba_pay'])
             ->assertStatus(502);
 
+        // The failed attempt must not linger as a pending orphan — the record
+        // is marked failed so a later retry starts a clean attempt.
         $payment = Payment::where('order_id', $order->id)->firstOrFail();
-        $this->assertSame('pending', $payment->payment_status);
+        $this->assertSame('failed', $payment->payment_status);
     }
 
     // ------------------------------------------------------------------
