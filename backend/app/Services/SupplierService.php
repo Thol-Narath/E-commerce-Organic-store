@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\SupplierOrder;
 use App\Models\SupplierOrderItem;
