@@ -31,7 +31,6 @@ class AdminProductController extends Controller
         ]);
 
         $paginator = $this->productService->adminQuery($filters)
-            ->withTrashed()
             ->paginate($this->perPage($request))
             ->withQueryString();
 
