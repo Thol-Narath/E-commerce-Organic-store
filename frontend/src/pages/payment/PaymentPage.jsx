@@ -149,6 +149,21 @@ export default function PaymentPage() {
     }
   }, [activePayment, orderNumber, pollOnce, showToast]);
 
+  // Regenerate a QR attempt for the same method (used by the QR error state).
+  const handleRetry = useCallback(async () => {
+    const method = activePayment?.payment_method;
+    if (!method) return;
+    setCreating(true);
+    try {
+      const payment = await paymentService.create(orderNumber, method);
+      setActivePayment(payment);
+    } catch (err) {
+      showToast(getErrorMessage(err), 'danger');
+    } finally {
+      setCreating(false);
+    }
+  }, [activePayment, orderNumber, showToast]);
+
   const handleExpire = useCallback(() => {
     stopPolling();
     navigate(`/payment/expired/${orderNumber}`, { replace: true });
@@ -157,17 +172,17 @@ export default function PaymentPage() {
   const methodContent = useMemo(() => {
     switch (activePayment?.payment_method) {
       case 'aba_pay':
-        return <AbaPayPayment payment={activePayment} />;
+        return <AbaPayPayment payment={activePayment} onRetry={handleRetry} />;
       case 'khqr':
-        return <KhqrPayment payment={activePayment} />;
+        return <KhqrPayment payment={activePayment} onRetry={handleRetry} />;
       case 'card':
         return <CardPayment payment={activePayment} />;
       case 'bakong':
-        return <BakongPayment payment={activePayment} />;
+        return <BakongPayment payment={activePayment} onRetry={handleRetry} />;
       default:
         return null;
     }
-  }, [activePayment]);
+  }, [activePayment, handleRetry]);
 
   if (booting) {
     return (

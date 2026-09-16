@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\AdminBannerController;
 use App\Http\Controllers\Api\V1\AdminSupplierController;
 use App\Http\Controllers\Api\V1\AddressController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BakongPaymentController;
 use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\HostedCheckoutController;
@@ -68,6 +69,10 @@ Route::prefix('v1')->group(function () {
     Route::get('payments/payway/checkout/{payment}', [HostedCheckoutController::class, 'show'])
         ->middleware('signed')
         ->name('payments.payway.checkout');
+
+    // Bakong transaction check — public by design, only reveals paid status for
+    // a given MD5 hash (used by the Bakong Open API integration).
+    Route::post('bakong/check-payment', [BakongPaymentController::class, 'check']);
 
     // Public authentication (rate-limited to mitigate brute force)
     Route::post('auth/register', [AuthController::class, 'register'])

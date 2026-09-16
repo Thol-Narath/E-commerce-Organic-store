@@ -24,7 +24,8 @@ class PaymentApiTest extends TestCase
         config([
             'payway.merchant_id' => 'ec000002',
             'payway.api_key' => 'test-api-key',
-            'payway.base_url' => 'https://checkout-sandbox.payway.com.kh/',
+            'payway.purchase_url' => 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase',
+            'payway.check_url' => 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/check-transaction-2',
             'bakong.enabled' => false,
         ]);
     }
@@ -331,7 +332,7 @@ class PaymentApiTest extends TestCase
             ->assertJsonPath('message', 'The selected payment method is not available.');
     }
 
-    public function test_gateway_unavailable_returns_502_and_payment_marks_failed(): void
+public function test_gateway_unavailable_returns_502_and_payment_is_marked_failed(): void
     {
         Http::fake(['https://checkout-sandbox.payway.com.kh/*' => Http::response([], 500)]);
 
@@ -667,6 +668,116 @@ class PaymentApiTest extends TestCase
 
         $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments/{$foreignPayment->id}/refresh")
             ->assertStatus(404);
+    }
+
+    public function test_refresh_rejects_currency_mismatch(): void
+    {
+        $token = $this->login($this->customer());
+        $order = $this->pendingOrder($token);
+
+        Http::fake([
+            'https://checkout-sandbox.payway.com.kh/*' => Http::response([
+                'data' => [
+                    'payment_status_code' => 0,
+                    'total_amount' => $order->total,
+                    'payment_currency' => 'KHR',
+                    'apv' => '753786',
+                ],
+                'status' => ['code' => '00', 'message' => 'Success!', 'tran_id' => 'TXNID'],
+            ]),
+        ]);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'aba_pay'])
+            ->assertStatus(201);
+
+        $payment = $order->payments()->first();
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments/{$payment->id}/refresh")
+            ->assertStatus(422);
+
+        $payment->refresh();
+        $this->assertSame('pending', $payment->payment_status);
+
+        $order->refresh();
+        $this->assertSame('unpaid', $order->payment_status);
+        $this->assertSame('pending', $order->status);
+    }
+
+    public function test_refresh_marks_cancelled_transaction_cancelled(): void
+    {
+        $token = $this->login($this->customer());
+        $order = $this->pendingOrder($token);
+
+        Http::fake([
+            'https://checkout-sandbox.payway.com.kh/*' => Http::response([
+                'data' => ['payment_status_code' => 7, 'payment_status' => 'CANCELLED'],
+                'status' => ['code' => '00', 'message' => 'Success!', 'tran_id' => 'TXNID'],
+            ]),
+        ]);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'aba_pay'])
+            ->assertStatus(201);
+
+        $payment = $order->payments()->first();
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments/{$payment->id}/refresh")
+            ->assertStatus(200)
+            ->assertJsonPath('data.payment_status', 'cancelled');
+
+        $order->refresh();
+        $this->assertSame('pending', $order->status);
+        $this->assertSame('unpaid', $order->payment_status);
+    }
+
+    public function test_refresh_returns_502_when_gateway_unavailable(): void
+    {
+        $token = $this->login($this->customer());
+        $order = $this->pendingOrder($token);
+
+        Http::fake([
+            'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase*' => Http::response([
+                'status' => ['code' => '00', 'message' => 'Success!', 'tran_id' => 'PY123ABC'],
+                'qr_string' => '00020101021230510016abaakhppxxx',
+            ]),
+            'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/check-transaction-2*' => Http::response([], 500),
+        ]);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'aba_pay'])
+            ->assertStatus(201);
+
+        $payment = $order->payments()->first();
+        $this->assertNotNull($payment->gateway_transaction_id);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments/{$payment->id}/refresh")
+            ->assertStatus(502);
+
+        $payment->refresh();
+        $this->assertSame('pending', $payment->payment_status);
+    }
+
+    public function test_refresh_pending_transaction_stays_pending(): void
+    {
+        $token = $this->login($this->customer());
+        $order = $this->pendingOrder($token);
+
+        Http::fake([
+            'https://checkout-sandbox.payway.com.kh/*' => Http::response([
+                'data' => ['payment_status_code' => 2, 'payment_status' => 'PENDING'],
+                'status' => ['code' => '00', 'message' => 'Success!', 'tran_id' => 'TXNID'],
+            ]),
+        ]);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'aba_pay'])
+            ->assertStatus(201);
+
+        $payment = $order->payments()->first();
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments/{$payment->id}/refresh")
+            ->assertStatus(200)
+            ->assertJsonPath('data.payment_status', 'pending');
+
+        $order->refresh();
+        $this->assertSame('unpaid', $order->payment_status);
     }
 
     // ------------------------------------------------------------------

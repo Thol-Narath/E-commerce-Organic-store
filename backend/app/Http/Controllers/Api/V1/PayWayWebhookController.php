@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Exceptions\PaymentException;
+use App\Exceptions\PaymentGatewayException;
 use App\Http\Controllers\Controller;
-use App\Services\PayWayService;
+use App\Services\AbaPaywayService;
 use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ class PayWayWebhookController extends Controller
     use ApiResponse;
 
     public function __construct(
-        private readonly PayWayService $payWay,
+        private readonly AbaPaywayService $payWay,
         private readonly PaymentService $paymentService,
     ) {}
 
@@ -43,6 +44,11 @@ class PayWayWebhookController extends Controller
             $this->paymentService->verifyCallbackAndApply($payload);
         } catch (PaymentException $e) {
             return $this->error($e->getMessage(), null, $e->responseStatus());
+        } catch (PaymentGatewayException) {
+            // The independent gateway verification failed (e.g. check-transaction
+            // could not be reached). Do not settle anything; signal a retryable
+            // error so PayWay re-sends the webhook later.
+            return $this->error('The gateway is temporarily unavailable. Please retry.', null, 502);
         }
 
         return $this->success(null, 'Webhook processed successfully.');

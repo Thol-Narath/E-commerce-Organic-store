@@ -36,19 +36,20 @@ order (others are cancelled); failed/expired/cancelled attempts never touch the 
 
 | Env key                     | Default      | Meaning                                   |
 |-----------------------------|--------------|-------------------------------------------|
-| `PAYWAY_ENVIRONMENT`        | `sandbox`    | Human label; **not** the base URL switch  |
-| `PAYWAY_MERCHANT_ID`        | —            | PayWay merchant id                        |
-| `PAYWAY_API_KEY`            | —            | API key (signs purchase, check-transaction AND webhook verification) |
-| `PAYWAY_BASE_URL`           | `https://checkout-sandbox.payway.com.kh/` | Gateway base URL (flip to `https://checkout.payway.com.kh/` for production) |
-| `PAYWAY_TIMEOUT`            | `30`         | HTTP timeout (s)                          |
-| `PAYWAY_CALLBACK_URL`       | `/api/v1/payments/payway/webhook` | Webhook URL PayWay posts back to (absolute in `.env`) |
-| `PAYWAY_RETURN_URL`         | `/payment`   | SPA "continue_success_url"               |
-| `PAYWAY_LIFETIME`           | `30`         | Attempt lifetime in minutes (min 3)       |
-| `PAYWAY_CURRENCY`           | `USD`        | Transaction currency                      |
-| `PAYWAY_ABA_PAY_ENABLED`    | `true`       | Toggles surfaced in `GET /payment-methods` |
-| `PAYWAY_KHQR_ENABLED`       | `true`       |                                         |
-| `PAYWAY_CARD_ENABLED`       | `true`       |                                         |
-| `PAYWAY_VERIFY_TRANSACTION` | `true`       | Scheduler re-checks pending attempts      |
+| `ABAPAYWAY_ENV`             | `sandbox`    | Human label; **not** the URL switch       |
+| `ABAPAYWAY_MERCHANT_ID`     | —            | PayWay merchant id                        |
+| `ABAPAYWAY_API_KEY`         | —            | API key (signs purchase, check-transaction AND webhook verification) |
+| `ABAPAYWAY_PURCHASE_URL`    | `https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase` | Create-payment endpoint (flip to `https://checkout.payway.com.kh/...` for production) |
+| `ABAPAYWAY_CHECK_URL`       | `https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/check-transaction-2` | Reconcile/verify endpoint (flip to production host) |
+| `ABAPAYWAY_TIMEOUT`         | `30`         | HTTP timeout (s)                          |
+| `ABAPAYWAY_CALLBACK_URL`    | `/api/v1/payments/payway/webhook` | Webhook URL PayWay posts back to (absolute in `.env`) |
+| `ABAPAYWAY_RETURN_URL`      | `/payment`   | SPA "continue_success_url"               |
+| `ABAPAYWAY_LIFETIME`        | `30`         | Attempt lifetime in minutes (min 3)       |
+| `ABAPAYWAY_CURRENCY`        | `USD`        | Transaction currency                      |
+| `ABAPAYWAY_ABA_PAY_ENABLED` | `true`       | Toggles surfaced in `GET /payment-methods` |
+| `ABAPAYWAY_KHQR_ENABLED`    | `true`       |                                         |
+| `ABAPAYWAY_CARD_ENABLED`    | `true`       |                                         |
+| `ABAPAYWAY_VERIFY_TRANSACTION` | `true`    | Scheduler re-checks pending attempts      |
 
 The `payment-methods` endpoint reads from config, so toggling a method never requires deploying
 frontend code and keys never reach the browser.
@@ -74,7 +75,7 @@ signature → `400` before any state change; amount/currency mismatch on confirm
 
 ## 4. Purchase Flow (attempt creation)
 
-`PaymentService::createPayment()` → `PayWayService::createPayment()` issues
+`PaymentService::createPayment()` → `AbaPaywayService::createPayment()` issues
 
 ```
 POST {base_url}/api/payment-gateway/v1/payments/purchase
@@ -109,7 +110,7 @@ Notes:
 `POST /api/v1/payments/payway/webhook` is public because PayWay cannot carry a Bearer header.
 It is therefore protected by the `X-PayWay-Hmac-SHA512` header:
 
-1. `PayWayService::verifyCallbackSignature()` sorts the payload keys ascending (`ksort`),
+1. `AbaPaywayService::verifyCallbackSignature()` sorts the payload keys ascending (`ksort`),
    concatenates the values (nested arrays JSON-encoded), HMAC-SHA512-signs with the **API key**
    and base64-encodes it; comparison uses `hash_equals` (timing-safe). A mismatch or missing
    signature → `400` and **no state change**.
@@ -209,9 +210,9 @@ exactly one fake and helpers never install fakes. Where a fixture must simulate 
 
 ## 10. Go-Live Checklist
 
-- [ ] Set real `PAYWAY_*` values in `.env`; keep `PAYWAY_BASE_URL` pointing at the sandbox until it passes.
-- [ ] `PAYWAY_CALLBACK_URL` must be a publicly reachable HTTPS URL → the webhook path.
-- [ ] Confirm `PAYWAY_RETURN_URL` (SPA) routing and the signing key base on the NGINX/Apache host.
+- [ ] Set real `ABAPAYWAY_*` values in `.env`; keep the URLs pointing at the sandbox until it passes.
+- [ ] `ABAPAYWAY_CALLBACK_URL` must be a publicly reachable HTTPS URL → the webhook path.
+- [ ] Confirm `ABAPAYWAY_RETURN_URL` (SPA) routing and the signing key base on the NGINX/Apache host.
 - [ ] Sandbox walkthrough: ABA Pay (QR + deeplink), KHQR scan, and card hosted page (success,
       decline, cancellation, timeout).
 - [ ] Verify amount/currency mismatch returns `422` and never marks paid.

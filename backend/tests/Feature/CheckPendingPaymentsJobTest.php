@@ -26,7 +26,8 @@ class CheckPendingPaymentsJobTest extends TestCase
             'payway.verify_transaction' => false,
             'payway.merchant_id' => 'ec000002',
             'payway.api_key' => 'test-api-key',
-            'payway.base_url' => 'https://checkout-sandbox.payway.com.kh/',
+            'payway.purchase_url' => 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase',
+            'payway.check_url' => 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/check-transaction-2',
         ]);
     }
 

@@ -12,6 +12,7 @@ use App\Services\OrderService;
 use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
@@ -42,8 +43,21 @@ class PaymentController extends Controller
             );
         } catch (PaymentException $e) {
             return $this->error($e->getMessage(), null, $e->responseStatus());
-        } catch (PaymentGatewayException) {
-            return $this->error('The payment gateway is unavailable. Please try again later.', null, 502);
+        } catch (PaymentGatewayException $e) {
+            Log::warning('Payment gateway failure during attempt creation', [
+                'method' => $request->input('payment_method'),
+                'order_number' => $orderNumber,
+                'gateway_code' => $e->gatewayCode(),
+                'message' => $e->getMessage(),
+            ]);
+
+            $message = $request->input('payment_method') === 'bakong'
+                ? 'Unable to connect to Bakong. Please try again.'
+                : ($e->gatewayCode() !== null
+                    ? 'The payment service declined the request: '.$e->getMessage().' Please try again.'
+                    : 'The payment gateway is unavailable. Please try again later.');
+
+            return $this->error($message, null, 502);
         }
 
         return $this->success(new PaymentResource($payment), 'Payment initiated successfully.', 201);

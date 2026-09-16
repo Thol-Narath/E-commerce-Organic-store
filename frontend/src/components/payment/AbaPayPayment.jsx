@@ -6,7 +6,7 @@ import { WalletIcon } from '../../assets/icons';
  * ABA Pay flow: gateway returns a deeplink (and a matching QR string) that a
  * desktop app or phone can open to approve the payment.
  */
-export default function AbaPayPayment({ payment }) {
+export default function AbaPayPayment({ payment, onRetry }) {
   return (
     <>
       <Alert variant="info" className="mb-3">
@@ -20,16 +20,18 @@ export default function AbaPayPayment({ payment }) {
         </ul>
       </Alert>
 
-      <div className="text-center">
-        <PaymentQr value={payment?.qr_string} caption="Scan with ABA Mobile" />
+      <PaymentQr
+        value={payment?.qr_string}
+        caption="Scan with ABA Mobile"
+        onRetry={onRetry}
+      />
 
-        {payment?.deeplink && (
-          <Button href={payment.deeplink} variant="success" size="lg" className="mt-2">
-            <WalletIcon size={20} className="me-2" />
-            Pay with ABA Mobile
-          </Button>
-        )}
-      </div>
+      {payment?.deeplink && (
+        <Button href={payment.deeplink} variant="success" size="lg" className="mt-3">
+          <WalletIcon size={20} className="me-2" />
+          Pay with ABA Mobile
+        </Button>
+      )}
     </>
   );
 }

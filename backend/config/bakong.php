@@ -20,11 +20,11 @@ return [
     |
     */
 
-    'base_url' => env('BAKONG_BASE_URL', 'https://api-bakong.nbc.gov.kh/v1'),
+    'base_url' => env('BAKONG_BASE_URL', env('BAKONG_API_URL', 'https://api-bakong.nbc.gov.kh/v1')),
 
-    'access_token' => env('BAKONG_ACCESS_TOKEN', ''),
+    'access_token' => env('BAKONG_ACCESS_TOKEN', env('BAKONG_TOKEN', '')),
 
-    'account_id' => env('BAKONG_ACCOUNT_ID', ''),
+    'account_id' => env('BAKONG_ACCOUNT_ID', env('BAKONG_MERCHANT_ID', '')),
 
     'email' => env('BAKONG_EMAIL', ''),
 

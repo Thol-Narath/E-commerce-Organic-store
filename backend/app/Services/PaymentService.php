@@ -10,6 +10,7 @@ use App\Http\Resources\PaymentResource;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -26,17 +27,24 @@ use Illuminate\Support\Str;
  *     never from the client;
  *   - Only enabled methods listed by GET /payment-methods can be used;
  *   - An order can have many attempts but only ONE success settles it;
- *   - A payment is considered paid ONLY after the gateway confirms it
- *     (webhook with valid HMAC signature, or check-transaction APPROVED) and
- *     the amount/currency are verified when the gateway reports them;
+ *   - A payment is considered paid ONLY after the gateway confirms it: the
+ *     webhook alone never settles a payment — a valid-HMAC webhook still has
+ *     to be re-verified through check-transaction-2 (same path as polling and
+ *     the scheduler), and the amount/currency must match the stored total;
  *   - A confirmed payment flips the order to payment_status=paid,
  *     status=confirmed;
  *   - Failed/expired/cancelled attempts never alter the order status.
  */
 class PaymentService
 {
+    /**
+     * Minimum seconds between backend-initiated Bakong verification calls for
+     * the same pending attempt (the SPA polls far more often than this).
+     */
+    private const BAKONG_VERIFY_THROTTLE_SECONDS = 15;
+
     public function __construct(
-        private readonly PayWayService $payWay,
+        private readonly AbaPaywayService $payWay,
         private readonly BakongService $bakong,
     ) {}
 
@@ -75,7 +83,11 @@ class PaymentService
         }
 
         if ($enum->isPayway()) {
-            return $this->payWay->isConfigured() && (bool) config('payway.methods.'.$method, false);
+            // A PayWay method is only usable when the gateway has real
+            // credentials — otherwise the attempt would fail before generating
+            // any QR and leave the customer looking at a QR-less "pending".
+            return (bool) config('payway.methods.'.$method, false)
+                && $this->payWay->isConfigured();
         }
 
         if ($enum->isBakong()) {
@@ -161,6 +173,9 @@ class PaymentService
                 $result = $this->payWay->createPayment($this->gatewayPayload($user, $order, $payment, $enum));
             }
         } catch (PaymentGatewayException $e) {
+            // The gateway could not start the attempt. Record it as failed so a
+            // QR-less "pending" attempt never becomes the latest attempt and
+            // shadows a later working one, then let the caller surface the error.
             Log::error('Payment gateway call failed', [
                 'payment_id' => $payment->id,
                 'gateway' => $gateway,
@@ -183,6 +198,7 @@ class PaymentService
         }
 
         $payment->gateway_transaction_id = $result['gateway_transaction_id'];
+        $payment->transaction_id = $result['gateway_transaction_id'];
 
         if (! empty($result['qr_string'])) {
             $payment->qr_string = $result['qr_string'];
@@ -194,7 +210,6 @@ class PaymentService
 
         if (! empty($result['html'])) {
             $payment->gateway_response = $result['html'];
-            $payment->transaction_id = $result['gateway_transaction_id'];
         }
 
         $payment->save();
@@ -205,10 +220,22 @@ class PaymentService
     /**
      * The data the payment page needs without hitting the gateway:
      * order state + latest attempt (QR / deeplink / hosted checkout link).
+     *
+     * For Bakong attempts this also re-verifies the transaction server-side
+     * (throttled) so React's polling can auto-detect a completed scan without
+     * relying on the scheduler. PayWay attempts stay a cheap DB read — their
+     * confirmation comes from the HMAC webhook + manual/scheduled refresh.
      */
     public function statusData(Order $order): array
     {
         $payment = $this->latestPayment($order);
+
+        if ($payment?->shouldReconcileOnStatus()) {
+            $this->verifyBakongIfDue($payment);
+
+            // Re-read so the response reflects the verification result.
+            $payment = $this->latestPayment($order);
+        }
 
         return [
             'order_number' => $order->order_number,
@@ -216,6 +243,34 @@ class PaymentService
             'order_payment_status' => $order->payment_status,
             'payment' => $payment ? (new PaymentResource($payment))->resolve() : null,
         ];
+    }
+
+    /**
+     * Re-verify a pending Bakong attempt against the Bakong Open API, but at
+     * most once every VERIFY_THROTTLE_SECONDS per attempt — the SPA polls every
+     * few seconds and we don't want to hammer the gateway on every poll.
+     *
+     * A transient gateway error is not fatal: the attempt stays pending and the
+     * next due poll (or the scheduler) retries it.
+     */
+    private function verifyBakongIfDue(Payment $payment): void
+    {
+        $throttleKey = 'bakong.verify:'.$payment->id;
+
+        if (Cache::has($throttleKey)) {
+            return;
+        }
+
+        Cache::put($throttleKey, true, self::BAKONG_VERIFY_THROTTLE_SECONDS);
+
+        try {
+            $this->refresh($payment);
+        } catch (PaymentGatewayException $e) {
+            Log::warning('Bakong verification failed on status poll', [
+                'payment_id' => $payment->id,
+                'gateway_code' => $e->gatewayCode(),
+            ]);
+        }
     }
 
     /**
@@ -349,7 +404,14 @@ class PaymentService
 
         try {
             $result = $this->bakong->checkTransaction($payment->gateway_transaction_id);
-        } catch (PaymentGatewayException) {
+        } catch (PaymentGatewayException $e) {
+            // Bakong unreachable/unexpected — keep the attempt pending for a
+            // later run; never mark it failed on a transient network error.
+            Log::warning('Bakong transaction check failed', [
+                'payment_id' => $payment->id,
+                'gateway_code' => $e->gatewayCode(),
+            ]);
+
             return $payment;
         }
 
@@ -389,6 +451,13 @@ class PaymentService
      *
      * The HMAC signature must already have been verified by the caller.
      *
+     * The callback status never settles a payment on its own. A `status=0`
+     * webhook is still re-checked against check-transaction-2 (which reports
+     * the APPROVED status, amount, currency and apv) before the payment and
+     * order may be marked paid. A gateway "transaction not found" is treated
+     * as a failed attempt; other gateway failures bubble up as failures the
+     * caller can retry.
+     *
      * @throws PaymentException when the referenced transaction is unknown
      */
     public function verifyCallbackAndApply(array $payload): Payment
@@ -411,11 +480,17 @@ class PaymentService
 
         $callbackStatus = (string) ($payload['status'] ?? '');
 
-        if ($callbackStatus === '0') {
-            return $this->confirmPayment($payment, null, null, isset($payload['apv']) ? $payload['apv'] : null);
+        if ($callbackStatus !== '0') {
+            return $this->markFailed($payment);
         }
 
-        return $this->markFailed($payment);
+        if ($payment->gateway !== 'payway') {
+            throw new PaymentException('Transaction not found.', 404);
+        }
+
+        // Independent verification: check-transaction-2 must report APPROVED
+        // with a matching amount/currency before the payment is settled.
+        return $this->refresh($payment);
     }
 
     /**

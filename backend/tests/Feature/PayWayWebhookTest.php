@@ -25,7 +25,8 @@ class PayWayWebhookTest extends TestCase
         config([
             'payway.merchant_id' => 'ec000002',
             'payway.api_key' => $this->apiKey,
-            'payway.base_url' => 'https://checkout-sandbox.payway.com.kh/',
+            'payway.purchase_url' => 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase',
+            'payway.check_url' => 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/check-transaction-2',
         ]);
     }
 
@@ -75,7 +76,13 @@ class PayWayWebhookTest extends TestCase
         $payment = $order->payments()->first();
         $tranId = $payment->gateway_transaction_id;
 
-        $payload = ['tran_id' => $tranId, 'status' => '0', 'apv' => '753786'];
+        Http::fake([
+            'https://checkout-sandbox.payway.com.kh/*' => Http::response(
+                $this->approvedCheckResponse((float) $payment->amount)
+            ),
+        ]);
+
+        $payload = ['tran_id' => $tranId, 'status' => '0'];
 
         $this->withHeaders(['X-PayWay-Hmac-SHA512' => $this->signatureFor($payload)])
             ->postJson('/api/v1/payments/payway/webhook', $payload)
@@ -100,7 +107,13 @@ class PayWayWebhookTest extends TestCase
         $payment = $order->payments()->first();
         $tranId = $payment->gateway_transaction_id;
 
-        $payload = ['tran_id' => $tranId, 'status' => '0', 'apv' => '753786'];
+        Http::fake([
+            'https://checkout-sandbox.payway.com.kh/*' => Http::response(
+                $this->approvedCheckResponse((float) $payment->amount)
+            ),
+        ]);
+
+        $payload = ['tran_id' => $tranId, 'status' => '0'];
         $headers = ['X-PayWay-Hmac-SHA512' => $this->signatureFor($payload)];
 
         $this->withHeaders($headers)->postJson('/api/v1/payments/payway/webhook', $payload)->assertStatus(200);
@@ -132,6 +145,111 @@ class PayWayWebhookTest extends TestCase
         $order->refresh();
         $this->assertSame('unpaid', $order->payment_status);
         $this->assertSame('pending', $order->status);
+    }
+
+    public function test_success_webhook_is_not_confirmed_when_gateway_still_pending(): void
+    {
+        Http::preventStrayRequests();
+        $token = $this->login($this->customer());
+        $order = $this->createPendingPayment($token);
+        $payment = $order->payments()->first();
+
+        Http::fake([
+            'https://checkout-sandbox.payway.com.kh/*' => Http::response([
+                'status' => ['code' => '00', 'message' => 'Success!', 'tran_id' => 'TXNID'],
+                'data' => ['payment_status_code' => 2, 'payment_status' => 'PENDING'],
+            ]),
+        ]);
+
+        $payload = ['tran_id' => $payment->gateway_transaction_id, 'status' => '0', 'apv' => '753786'];
+
+        $this->withHeaders(['X-PayWay-Hmac-SHA512' => $this->signatureFor($payload)])
+            ->postJson('/api/v1/payments/payway/webhook', $payload)
+            ->assertStatus(200);
+
+        $payment->refresh();
+        $this->assertSame('pending', $payment->payment_status);
+
+        $order->refresh();
+        $this->assertSame('unpaid', $order->payment_status);
+    }
+
+    public function test_success_webhook_rejects_amount_mismatch(): void
+    {
+        Http::preventStrayRequests();
+        $token = $this->login($this->customer());
+        $order = $this->createPendingPayment($token);
+        $payment = $order->payments()->first();
+
+        Http::fake([
+            'https://checkout-sandbox.payway.com.kh/*' => Http::response(
+                $this->approvedCheckResponse((float) $payment->amount - 5)
+            ),
+        ]);
+
+        $payload = ['tran_id' => $payment->gateway_transaction_id, 'status' => '0'];
+
+        $this->withHeaders(['X-PayWay-Hmac-SHA512' => $this->signatureFor($payload)])
+            ->postJson('/api/v1/payments/payway/webhook', $payload)
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'The paid amount does not match the order total.');
+
+        $payment->refresh();
+        $this->assertSame('pending', $payment->payment_status);
+
+        $order->refresh();
+        $this->assertSame('unpaid', $order->payment_status);
+    }
+
+    public function test_success_webhook_rejects_currency_mismatch(): void
+    {
+        Http::preventStrayRequests();
+        $token = $this->login($this->customer());
+        $order = $this->createPendingPayment($token);
+        $payment = $order->payments()->first();
+
+        Http::fake([
+            'https://checkout-sandbox.payway.com.kh/*' => Http::response(
+                $this->approvedCheckResponse((float) $payment->amount, 'KHR')
+            ),
+        ]);
+
+        $payload = ['tran_id' => $payment->gateway_transaction_id, 'status' => '0'];
+
+        $this->withHeaders(['X-PayWay-Hmac-SHA512' => $this->signatureFor($payload)])
+            ->postJson('/api/v1/payments/payway/webhook', $payload)
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'The paid currency does not match the order currency.');
+
+        $payment->refresh();
+        $this->assertSame('pending', $payment->payment_status);
+
+        $order->refresh();
+        $this->assertSame('unpaid', $order->payment_status);
+    }
+
+    public function test_success_webhook_returns_502_when_gateway_check_fails(): void
+    {
+        Http::preventStrayRequests();
+        $token = $this->login($this->customer());
+        $order = $this->createPendingPayment($token);
+        $payment = $order->payments()->first();
+
+        Http::fake([
+            'https://checkout-sandbox.payway.com.kh/*' => Http::response([], 500),
+        ]);
+
+        $payload = ['tran_id' => $payment->gateway_transaction_id, 'status' => '0'];
+
+        $this->withHeaders(['X-PayWay-Hmac-SHA512' => $this->signatureFor($payload)])
+            ->postJson('/api/v1/payments/payway/webhook', $payload)
+            ->assertStatus(502);
+
+        $payment->refresh();
+        $this->assertSame('pending', $payment->payment_status);
+
+        $order->refresh();
+        $this->assertSame('unpaid', $order->payment_status);
     }
 
     public function test_unknown_transaction_is_rejected(): void
@@ -186,6 +304,21 @@ class PayWayWebhookTest extends TestCase
         $raw = implode('', array_map(fn ($value) => is_array($value) ? json_encode($value) : (string) $value, $payload));
 
         return base64_encode(hash_hmac('sha512', $raw, $this->apiKey, true));
+    }
+
+    protected function approvedCheckResponse(float $amount, string $currency = 'USD', string $apv = '753786'): array
+    {
+        return [
+            'status' => ['code' => '00', 'message' => 'Success!', 'tran_id' => 'TXNID'],
+            'data' => [
+                'payment_status_code' => 0,
+                'payment_status' => 'APPROVED',
+                'total_amount' => $amount,
+                'payment_amount' => $amount,
+                'payment_currency' => $currency,
+                'apv' => $apv,
+            ],
+        ];
     }
 
     protected function customer(): User

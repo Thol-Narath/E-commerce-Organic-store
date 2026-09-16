@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Log;
 class BakongService
 {
     private const TOKEN_CACHE_KEY = 'bakong_access_token';
+
     private const TOKEN_EXPIRY_CACHE_KEY = 'bakong_token_expires_at';
 
     public function __construct(
@@ -73,6 +74,10 @@ class BakongService
     {
         $this->assertConfigured();
 
+        $lifetimeMinutes = max(3, (int) config('bakong.lifetime', 15));
+        $createdAt = now();
+        $expiresAt = $createdAt->copy()->addMinutes($lifetimeMinutes);
+
         $qrString = $this->qrGenerator->generate([
             'account_id' => $this->accountId(),
             'merchant_name' => $this->merchantName(),
@@ -83,9 +88,42 @@ class BakongService
             'store_label' => 'Organic Store',
             'terminal_label' => 'Web',
             'purpose_of_transaction' => 'Payment',
+            'created_at' => $createdAt,
+            'expires_at' => $expiresAt,
         ]);
 
+        $errors = $this->qrGenerator->validate($qrString, [
+            'amount' => $amount,
+            'currency' => $this->currency(),
+            'account_id' => $this->accountId(),
+        ]);
+
+        if ($errors !== []) {
+            Log::error('Bakong KHQR validation failed before display', [
+                'order' => $orderNumber,
+                'errors' => $errors,
+                'qr_length' => strlen($qrString),
+                // The QR string is not a secret: it is shown to the customer
+                // in the UI and is included here only for debugging purposes.
+                'qr_string' => $qrString,
+            ]);
+
+            throw new PaymentGatewayException(
+                'Generated KHQR payload is invalid: '.implode('; ', $errors),
+                'INVALID_KHQR'
+            );
+        }
+
         $md5 = $this->qrGenerator->generateMd5($qrString);
+
+        Log::info('Bakong KHQR generated', [
+            'order' => $orderNumber,
+            'amount' => $amount,
+            'currency' => $this->currency(),
+            'md5' => $md5,
+            'qr_length' => strlen($qrString),
+            'expires_at' => $expiresAt->toIso8601String(),
+        ]);
 
         $deeplink = null;
 
@@ -157,6 +195,30 @@ class BakongService
             'paid' => $paid,
             'data' => $paid ? $data : null,
             'raw' => $response,
+        ];
+    }
+
+    /**
+     * Standalone check for the legacy public /bakong/check-payment endpoint.
+     *
+     * @return array{http_status: int, success: bool, data: ?array}
+     */
+    public function checkPaymentByMd5(string $md5): array
+    {
+        try {
+            $result = $this->checkTransaction($md5);
+        } catch (PaymentGatewayException) {
+            return [
+                'http_status' => 502,
+                'success' => false,
+                'data' => null,
+            ];
+        }
+
+        return [
+            'http_status' => 200,
+            'success' => $result['paid'],
+            'data' => $result['paid'] ? $result['data'] : $result['raw'],
         ];
     }
 
@@ -255,6 +317,12 @@ class BakongService
         }
 
         if ($response->failed()) {
+            Log::error('Bakong API request failed', [
+                'endpoint' => $path,
+                'http_status' => $response->status(),
+                'response' => mb_substr((string) $response->body(), 0, 2000),
+            ]);
+
             throw new PaymentGatewayException(
                 'Bakong API request failed with HTTP '.$response->status()
             );

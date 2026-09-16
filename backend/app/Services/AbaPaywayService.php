@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\PaymentStatus;
 use App\Exceptions\PaymentGatewayException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Thin client for the ABA PayWay payment gateway.
@@ -21,9 +22,9 @@ use Illuminate\Support\Facades\Http;
  * concatenated field values (in the documented order) keyed by the API key.
  * For check-transaction only req_time + merchant_id + tran_id are hashed.
  *
- * @see docs/payment-integration.md
+ * @see docs/ABA_PAYWAY_SETUP.md
  */
-class PayWayService
+class AbaPaywayService
 {
     private const PURCHASE_PATH = 'api/payment-gateway/v1/payments/purchase';
     private const CHECK_PATH = 'api/payment-gateway/v1/payments/check-transaction-2';
@@ -74,9 +75,14 @@ class PayWayService
         return (string) config('payway.api_key');
     }
 
-    public function baseUrl(): string
+    public function purchaseUrl(): string
     {
-        return rtrim((string) config('payway.base_url'), '/').'/';
+        return (string) config('payway.purchase_url', 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase');
+    }
+
+    public function checkUrl(): string
+    {
+        return (string) config('payway.check_url', 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/check-transaction-2');
     }
 
     /**
@@ -150,9 +156,16 @@ class PayWayService
 
         $response = Http::asMultipart()
             ->timeout((int) config('payway.timeout', 30))
-            ->post($this->baseUrl().self::PURCHASE_PATH, $fields);
+            ->post($this->purchaseUrl(), $fields);
 
         if ($response->failed()) {
+            Log::error('PayWay purchase request failed', [
+                'tran_id' => $tranId,
+                'payment_option' => $fields['payment_option'] ?? null,
+                'http_status' => $response->status(),
+                'response' => $this->logSafeBody($response->body()),
+            ]);
+
             throw new PaymentGatewayException(
                 'PayWay purchase request failed with HTTP '.$response->status()
             );
@@ -169,6 +182,12 @@ class PayWayService
         $payload = $response->json();
 
         if (! is_array($payload) || ! isset($payload['status']['code'])) {
+            Log::error('PayWay returned an unexpected purchase response', [
+                'tran_id' => $tranId,
+                'http_status' => $response->status(),
+                'response' => $this->logSafeBody($response->body()),
+            ]);
+
             throw new PaymentGatewayException('PayWay returned an unexpected purchase response.');
         }
 
@@ -176,13 +195,27 @@ class PayWayService
 
         if ($code !== '00') {
             $message = (string) ($payload['status']['message'] ?? 'PayWay refused the payment transaction.');
+            Log::warning('PayWay refused the payment transaction', [
+                'tran_id' => $tranId,
+                'gateway_code' => $code,
+                'message' => $message,
+            ]);
+
             throw new PaymentGatewayException($message, $code);
         }
 
+        $deeplink = isset($payload['abapay_deeplink']) ? (string) $payload['abapay_deeplink'] : null;
+
         return [
             'gateway_transaction_id' => $tranId,
-            'qr_string' => isset($payload['qr_string']) ? (string) $payload['qr_string'] : null,
-            'deeplink' => isset($payload['abapay_deeplink']) ? (string) $payload['abapay_deeplink'] : null,
+            // Some environments (notably the sandbox) do not return a standalone
+            // `qr_string` for the deeplink QR flow — the real KHQR string is
+            // embedded in the returned deeplink's `qrcode` query parameter.
+            // Recover it so the client always has something real to render.
+            'qr_string' => ! empty($payload['qr_string'])
+                ? (string) $payload['qr_string']
+                : $this->extractQrFromDeeplink($deeplink),
+            'deeplink' => $deeplink,
             'checkout_qr_url' => isset($payload['checkout_qr_url']) ? (string) $payload['checkout_qr_url'] : null,
         ];
     }
@@ -209,9 +242,15 @@ class PayWayService
 
         $response = Http::asJson()
             ->timeout((int) config('payway.timeout', 30))
-            ->post($this->baseUrl().self::CHECK_PATH, $payload);
+            ->post($this->checkUrl(), $payload);
 
         if ($response->failed()) {
+            Log::error('PayWay check-transaction request failed', [
+                'tran_id' => $tranId,
+                'http_status' => $response->status(),
+                'response' => $this->logSafeBody($response->body()),
+            ]);
+
             throw new PaymentGatewayException(
                 'PayWay check-transaction request failed with HTTP '.$response->status()
             );
@@ -220,6 +259,12 @@ class PayWayService
         $body = $response->json();
 
         if (! is_array($body) || ! isset($body['status']['code'])) {
+            Log::error('PayWay returned an unexpected check response', [
+                'tran_id' => $tranId,
+                'http_status' => $response->status(),
+                'response' => $this->logSafeBody($response->body()),
+            ]);
+
             throw new PaymentGatewayException('PayWay returned an unexpected check response.');
         }
 
@@ -227,6 +272,12 @@ class PayWayService
 
         if ($code !== '00') {
             $message = (string) ($body['status']['message'] ?? 'PayWay could not verify the transaction.');
+            Log::warning('PayWay could not verify the transaction', [
+                'tran_id' => $tranId,
+                'gateway_code' => $code,
+                'message' => $message,
+            ]);
+
             throw new PaymentGatewayException($message, $code);
         }
 
@@ -308,6 +359,51 @@ class PayWayService
         }
 
         return $this->hash($raw);
+    }
+
+    /**
+     * Recover the real KHQR string from a PayWay deeplink.
+     *
+     * The deeplink returned for the `abapay_khqr_deeplink` option carries the
+     * actual gateway-generated KHQR payload in its `qrcode` query parameter
+     * (URL-encoded). This is the same scannable KHQR rendered by PayWay's own
+     * UI, so using it is not a fake/placeholder — it matches the order and
+     * amount exactly.
+     */
+    private function extractQrFromDeeplink(?string $deeplink): ?string
+    {
+        if ($deeplink === null) {
+            return null;
+        }
+
+        $query = parse_url($deeplink, PHP_URL_QUERY);
+
+        if (! is_string($query)) {
+            return null;
+        }
+
+        parse_str($query, $params);
+
+        $qr = $params['qrcode'] ?? null;
+
+        if (! is_string($qr) || $qr === '') {
+            return null;
+        }
+
+        // Guard: only accept a payload that looks like a real KHQR.
+        return str_starts_with($qr, '000201') ? $qr : null;
+    }
+
+    /**
+     * A truncated copy of a gateway response body that is safe to log.
+     *
+     * Response bodies never contain the API key (the key only ever appears in
+     * the outbound HMAC hash). Truncation keeps log lines small, e.g. when a
+     * hosted checkout returns a large HTML page.
+     */
+    private function logSafeBody(string $body): string
+    {
+        return mb_substr($body, 0, 2000);
     }
 
     private function assertConfigured(): void
