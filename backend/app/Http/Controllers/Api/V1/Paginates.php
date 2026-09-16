@@ -14,7 +14,7 @@ trait Paginates
      */
     protected function perPage(Request $request, int $default = 10): int
     {
-        return max(1, min((int) $request->input('per_page', $default), 20));
+        return max(1, min((int) $request->input('per_page', $default), 50));
     }
 
     /**
