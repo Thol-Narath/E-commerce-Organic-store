@@ -1,0 +1,5 @@
+{
+    "require": {
+        "helmab/bakong": "^1.0"
+    }
+}
