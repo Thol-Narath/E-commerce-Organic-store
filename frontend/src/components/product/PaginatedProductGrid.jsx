@@ -87,11 +87,13 @@ export default function PaginatedProductGrid({
       </Row>
 
       {totalPages > 1 && (
-        <StorePagination
-          pagination={{ current_page: page, last_page: totalPages, per_page: pageSize, total: products.length }}
-          onPageChange={setPage}
-          ariaLabel="Product pages"
-        />
+        <div className="product-pagination-wrap">
+          <StorePagination
+            pagination={{ current_page: page, last_page: totalPages, per_page: pageSize, total: products.length }}
+            onPageChange={setPage}
+            ariaLabel="Product pages"
+          />
+        </div>
       )}
     </>
   );

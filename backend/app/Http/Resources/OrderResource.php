@@ -33,6 +33,12 @@ class OrderResource extends JsonResource
             'subtotal' => $this->money($this->subtotal),
             'discount' => $this->money($this->discount),
             'shipping_fee' => $this->money($this->shipping_fee),
+            'shipping_method' => $this->shipping_method_name
+                ? [
+                    'id' => $this->shipping_method_id,
+                    'name' => $this->shipping_method_name,
+                ]
+                : null,
             'tax' => $this->money($this->tax),
             'total' => $this->money($this->total),
             'shipping_address' => $snapshot,

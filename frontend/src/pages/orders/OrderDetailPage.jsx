@@ -275,7 +275,9 @@ export default function OrderDetailPage() {
                   <dd className="mb-0">{formatPrice(order.subtotal)}</dd>
                 </div>
                 <div className="d-flex justify-content-between mb-1">
-                  <dt className="text-muted fw-normal">Shipping</dt>
+                  <dt className="text-muted fw-normal">
+                    Shipping{order.shipping_method?.name ? ` (${order.shipping_method.name})` : ''}
+                  </dt>
                   <dd className="mb-0">{formatPrice(order.shipping_fee)}</dd>
                 </div>
                 {Number(order.discount) > 0 && (

@@ -25,6 +25,7 @@ export default function AdminLayout() {
     { to: '/admin/orders', label: 'Orders', icon: TruckIcon, match: (p) => p.startsWith('/admin/orders') },
     { to: '/admin/products', label: 'Products', icon: StoreIcon, match: (p) => p.startsWith('/admin/products') },
     { to: '/admin/inventory', label: 'Inventory', icon: BoxesIcon, match: (p) => p === '/admin/inventory' || p.startsWith('/admin/inventory/') },
+    { to: '/admin/shipping-methods', label: 'Shipping', icon: TruckIcon, match: (p) => p.startsWith('/admin/shipping-methods') },
     { to: '/admin/suppliers', label: 'Suppliers', icon: FactoryIcon, match: (p) => p.startsWith('/admin/suppliers') || p.startsWith('/admin/supplier-orders') },
     { to: '/admin/categories', label: 'Categories', icon: TagIcon, match: (p) => p.startsWith('/admin/categories') },
     { to: '/admin/banners', label: 'Banners', icon: ImageIcon, match: (p) => p.startsWith('/admin/banners') },

@@ -236,7 +236,9 @@ export default function AdminOrderDetail() {
                   </div>
                 )}
                 <div className="d-flex justify-content-between w-100 w-sm-auto" style={{ minWidth: 220 }}>
-                  <span className="text-muted">Shipping</span>
+                  <span className="text-muted">
+                    Shipping{order.shipping_method?.name ? ` (${order.shipping_method.name})` : ''}
+                  </span>
                   <span>{formatPrice(order.shipping_fee)}</span>
                 </div>
                 <div className="d-flex justify-content-between w-100 w-sm-auto" style={{ minWidth: 220 }}>

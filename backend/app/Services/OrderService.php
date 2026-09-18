@@ -28,7 +28,10 @@ use Illuminate\Validation\ValidationException;
  */
 class OrderService
 {
-    public function __construct(private readonly InventoryService $inventory) {}
+    public function __construct(
+        private readonly InventoryService $inventory,
+        private readonly ShippingMethodService $shipping,
+    ) {}
 
     /**
      * Eager loads shared by order listing and detail lookups so resources
@@ -48,14 +51,18 @@ class OrderService
     /**
      * Place an order from the customer's current cart.
      *
+     * @param  int|null  $shippingMethodId  the admin-defined shipping method to
+     *                                      price; null uses the store default
+     *
      * @return Order|null null when the address is not owned by the user
      *
-     * @throws ValidationException when the cart is empty or any line is
-     *                             unavailable / beyond available stock
+     * @throws ValidationException when the cart is empty, the shipping method is
+     *                             unavailable, or any line is unavailable /
+     *                             beyond available stock
      */
-    public function placeOrder(User $user, int $addressId): ?Order
+    public function placeOrder(User $user, int $addressId, ?int $shippingMethodId = null): ?Order
     {
-        return DB::transaction(function () use ($user, $addressId) {
+        return DB::transaction(function () use ($user, $addressId, $shippingMethodId) {
             $address = $user->addresses()->find($addressId);
 
             if (! $address) {
@@ -80,7 +87,9 @@ class OrderService
             }
 
             $subtotal = round($subtotal, 2);
-            $shippingFee = (float) config('store.shipping_fee');
+
+            $shippingMethod = $this->shipping->resolveForOrder($shippingMethodId);
+            $shippingFee = $this->shipping->calculate($shippingMethod, $subtotal);
             $discount = 0.0;
             $tax = 0.0;
             $total = round($subtotal + $shippingFee + $tax - $discount, 2);
@@ -89,6 +98,8 @@ class OrderService
                 'order_number' => 'TMP-'.bin2hex(random_bytes(6)),
                 'user_id' => $user->id,
                 'address_id' => $address->id,
+                'shipping_method_id' => $shippingMethod?->id,
+                'shipping_method_name' => $shippingMethod?->name,
                 'coupon_id' => null,
                 'subtotal' => $subtotal,
                 'discount' => $discount,

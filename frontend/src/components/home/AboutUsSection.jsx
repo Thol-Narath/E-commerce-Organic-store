@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Carousel } from 'react-bootstrap';
 import { ArrowRightIcon } from '../../assets/icons';
+import { settingsService } from '../../services/settingsService';
 
 const ABOUT_SLIDES = [
   {
@@ -21,33 +23,59 @@ const ABOUT_SLIDES = [
 ];
 
 export default function AboutUsSection() {
+  const [aboutImage, setAboutImage] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    settingsService
+      .publicSettings()
+      .then((data) => {
+        if (!cancelled) setAboutImage(data?.about?.image_url || null);
+      })
+      .catch(() => {
+        if (!cancelled) setAboutImage(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <section className="section-about py-5">
       <div className="container-lg">
         <div className="about-grid align-items-center">
           <div className="about-image-col">
             <div className="about-image-frame">
-              <Carousel
-                interval={4500}
-                controls={false}
-                indicators={true}
-                pause="hover"
-                className="about-carousel"
-              >
-                {ABOUT_SLIDES.map((slide) => (
-                  <Carousel.Item key={slide.src}>
-                    <img
-                      className="about-slide-img w-100 h-100"
-                      src={slide.src}
-                      alt={slide.alt}
-                      loading="lazy"
-                    />
-                    <Carousel.Caption className="d-none d-sm-block">
-                      <span className="about-slide-caption">{slide.caption}</span>
-                    </Carousel.Caption>
-                  </Carousel.Item>
-                ))}
-              </Carousel>
+              {aboutImage ? (
+                <img
+                  className="about-slide-img w-100 h-100"
+                  src={aboutImage}
+                  alt="About our organic store"
+                  loading="lazy"
+                />
+              ) : (
+                <Carousel
+                  interval={4500}
+                  controls={false}
+                  indicators={true}
+                  pause="hover"
+                  className="about-carousel"
+                >
+                  {ABOUT_SLIDES.map((slide) => (
+                    <Carousel.Item key={slide.src}>
+                      <img
+                        className="about-slide-img w-100 h-100"
+                        src={slide.src}
+                        alt={slide.alt}
+                        loading="lazy"
+                      />
+                      <Carousel.Caption className="d-none d-sm-block">
+                        <span className="about-slide-caption">{slide.caption}</span>
+                      </Carousel.Caption>
+                    </Carousel.Item>
+                  ))}
+                </Carousel>
+              )}
             </div>
             <div className="about-experience-badge">
               <span className="about-exp-number">15+</span>

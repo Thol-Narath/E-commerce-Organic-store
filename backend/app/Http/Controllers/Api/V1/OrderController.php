@@ -22,7 +22,11 @@ class OrderController extends Controller
      */
     public function checkout(CheckoutRequest $request): JsonResponse
     {
-        $order = $this->orderService->placeOrder($request->user(), $request->integer('address_id'));
+        $order = $this->orderService->placeOrder(
+            $request->user(),
+            $request->integer('address_id'),
+            $request->filled('shipping_method_id') ? $request->integer('shipping_method_id') : null
+        );
 
         if (! $order) {
             return $this->error('Address not found.', null, 404);

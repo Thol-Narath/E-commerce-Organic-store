@@ -38,6 +38,7 @@ class SettingsController extends Controller
 
                 $heroUrl = $rows->get('hero_banner.url')->value ?? null;
                 $logoPath = $rows->get('store.logo')->value ?? null;
+                $aboutPath = $rows->get('about.image')->value ?? null;
 
                 if ($heroUrl && ! str_starts_with($heroUrl, 'http')) {
                     $heroUrl = url('storage/'.ltrim($heroUrl, '/'));
@@ -48,6 +49,13 @@ class SettingsController extends Controller
                     $logoUrl = str_starts_with($logoPath, 'http')
                         ? $logoPath
                         : url('storage/'.ltrim($logoPath, '/'));
+                }
+
+                $aboutUrl = null;
+                if ($aboutPath) {
+                    $aboutUrl = str_starts_with($aboutPath, 'http')
+                        ? $aboutPath
+                        : url('storage/'.ltrim($aboutPath, '/'));
                 }
 
                 return [
@@ -69,6 +77,20 @@ class SettingsController extends Controller
                         'free_over' => number_format((float) ($rows->get('shipping.free_over')->value ?? 0), 2, '.', ''),
                     ],
                     'hero_banner_url' => $heroUrl,
+                    'about' => [
+                        'image_url' => $aboutUrl,
+                    ],
+                    'location' => [
+                        'name' => $rows->get('store.name')->value ?? config('app.name', 'Organic Store'),
+                        'address' => $rows->get('store.contact_address')->value ?? '',
+                        'phone' => $rows->get('store.contact_phone')->value ?? '',
+                        'email' => $rows->get('store.contact_email')->value ?? '',
+                        'latitude' => $rows->get('store.latitude')->value ?? null,
+                        'longitude' => $rows->get('store.longitude')->value ?? null,
+                        'google_maps_url' => $rows->get('store.google_maps_url')->value ?? null,
+                        'google_maps_embed_url' => $rows->get('store.google_maps_embed_url')->value ?? null,
+                        'business_hours' => $rows->get('store.business_hours')->value ?? '',
+                    ],
                 ];
             }
         );
@@ -102,6 +124,8 @@ class SettingsController extends Controller
             );
         }
 
+        $this->cacheService->invalidate('settings');
+
         return $this->success([
             'name' => $values['store.name'],
             'tagline' => $values['store.tagline'],
@@ -133,6 +157,8 @@ class SettingsController extends Controller
                 ['value' => $value, 'group' => 'store', 'is_public' => true]
             );
         }
+
+        $this->cacheService->invalidate('settings');
 
         return $this->success([
             'address' => $values['store.contact_address'],
@@ -179,6 +205,8 @@ class SettingsController extends Controller
             ['value' => $path, 'group' => 'store', 'is_public' => true]
         );
 
+        $this->cacheService->invalidate('settings');
+
         return $this->success(
             ['logo' => url('storage/'.ltrim($path, '/')), 'is_set' => true],
             'Logo updated successfully.'
@@ -200,7 +228,163 @@ class SettingsController extends Controller
             ['value' => '', 'group' => 'store', 'is_public' => true]
         );
 
+        $this->cacheService->invalidate('settings');
+
         return $this->success(null, 'Logo removed successfully.');
+    }
+
+    /**
+     * GET /api/v1/admin/settings/about-image — current about section image
+     * shown on the storefront homepage (admin only).
+     */
+    public function getAboutImage(): JsonResponse
+    {
+        $path = Setting::where('key', 'about.image')->value('value');
+
+        return $this->success([
+            'image_url' => $path && ! str_starts_with($path, 'http')
+                ? url('storage/'.ltrim($path, '/'))
+                : ($path ?: null),
+            'is_set' => (bool) $path,
+        ], 'About image retrieved successfully.');
+    }
+
+    /**
+     * POST /api/v1/admin/settings/about-image — upload/replace the about
+     * section image used by the storefront homepage (admin only).
+     * Expects a multipart field `about_image` (png, jpg, jpeg or webp).
+     */
+    public function uploadAboutImage(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'about_image' => 'required|image|mimes:png,jpg,jpeg,webp|max:4096',
+        ]);
+
+        $file = $validated['about_image'];
+
+        // Remove the previous about image file if it lives on the public disk.
+        $oldPath = Setting::where('key', 'about.image')->value('value');
+        if ($oldPath && ! str_starts_with($oldPath, 'http')) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        $path = $file->store('about', 'public');
+
+        Setting::updateOrCreate(
+            ['key' => 'about.image'],
+            ['value' => $path, 'group' => 'about', 'is_public' => true]
+        );
+
+        return $this->success(
+            ['image_url' => url('storage/'.ltrim($path, '/')), 'is_set' => true],
+            'About image updated successfully.'
+        );
+    }
+
+    /**
+     * DELETE /api/v1/admin/settings/about-image — remove the about section
+     * image (admin only). The storefront falls back to default slides.
+     */
+    public function removeAboutImage(): JsonResponse
+    {
+        $oldPath = Setting::where('key', 'about.image')->value('value');
+        if ($oldPath && ! str_starts_with($oldPath, 'http')) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        Setting::updateOrCreate(
+            ['key' => 'about.image'],
+            ['value' => '', 'group' => 'about', 'is_public' => true]
+        );
+
+        $this->cacheService->invalidate('settings');
+
+        return $this->success(null, 'About image removed successfully.');
+    }
+
+    /**
+     * GET /api/v1/admin/settings/store-location — current store location,
+     * contact and map configuration used by the About page (admin only).
+     */
+    public function getStoreLocation(): JsonResponse
+    {
+        $keys = [
+            'store.name',
+            'store.contact_address',
+            'store.contact_phone',
+            'store.contact_email',
+            'store.latitude',
+            'store.longitude',
+            'store.google_maps_url',
+            'store.google_maps_embed_url',
+            'store.business_hours',
+        ];
+
+        $rows = Setting::whereIn('key', $keys)->get()->keyBy('key');
+
+        return $this->success([
+            'store_name' => $rows->get('store.name')->value ?? '',
+            'address' => $rows->get('store.contact_address')->value ?? '',
+            'phone' => $rows->get('store.contact_phone')->value ?? '',
+            'email' => $rows->get('store.contact_email')->value ?? '',
+            'latitude' => $rows->get('store.latitude')->value ?? null,
+            'longitude' => $rows->get('store.longitude')->value ?? null,
+            'google_maps_url' => $rows->get('store.google_maps_url')->value ?? null,
+            'google_maps_embed_url' => $rows->get('store.google_maps_embed_url')->value ?? null,
+            'business_hours' => $rows->get('store.business_hours')->value ?? '',
+        ], 'Store location retrieved successfully.');
+    }
+
+    /**
+     * PUT /api/v1/admin/settings/store-location — update the store location,
+     * contact and Google Map configuration shown on the About page (admin only).
+     */
+    public function updateStoreLocation(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'store_name' => ['required', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'google_maps_url' => ['nullable', 'url', 'max:500'],
+            'google_maps_embed_url' => ['nullable', 'string', 'max:500'],
+            'business_hours' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $values = [
+            'store.name' => trim($validated['store_name']),
+            'store.contact_address' => trim($validated['address'] ?? ''),
+            'store.contact_phone' => trim($validated['phone'] ?? ''),
+            'store.contact_email' => trim($validated['email'] ?? ''),
+            'store.latitude' => ($validated['latitude'] ?? '') === '' ? '' : (string) $validated['latitude'],
+            'store.longitude' => ($validated['longitude'] ?? '') === '' ? '' : (string) $validated['longitude'],
+            'store.google_maps_url' => trim($validated['google_maps_url'] ?? ''),
+            'store.google_maps_embed_url' => trim($validated['google_maps_embed_url'] ?? ''),
+            'store.business_hours' => trim($validated['business_hours'] ?? ''),
+        ];
+
+        foreach ($values as $key => $value) {
+            Setting::updateOrCreate(
+                ['key' => $key],
+                ['value' => (string) $value, 'group' => 'store', 'is_public' => true]
+            );
+        }
+
+        $this->cacheService->invalidate('settings');
+
+        return $this->success([
+            'store_name' => $values['store.name'],
+            'address' => $values['store.contact_address'],
+            'phone' => $values['store.contact_phone'],
+            'email' => $values['store.contact_email'],
+            'latitude' => $values['store.latitude'],
+            'longitude' => $values['store.longitude'],
+            'google_maps_url' => $values['store.google_maps_url'],
+            'google_maps_embed_url' => $values['store.google_maps_embed_url'],
+            'business_hours' => $values['store.business_hours'],
+        ], 'Store location updated successfully.');
     }
 
     /**

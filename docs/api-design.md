@@ -267,18 +267,22 @@ user; another customer's order number returns `404`.
 
 | Method | Endpoint                     | Description                        |
 |--------|------------------------------|------------------------------------|
-| POST   | /api/v1/checkout             | Place order from the current cart (body: `address_id`) |
+| POST   | /api/v1/checkout             | Place order from the current cart (body: `address_id`, optional `shipping_method_id`) |
 | GET    | /api/v1/orders               | List my orders (paginated, newest first) |
 | GET    | /api/v1/orders/{orderNumber} | Order detail + items + shipping snapshot |
 | POST   | /api/v1/orders/{order_number}/cancel | Cancel pending order (Phase 8) |
 | GET    | /api/v1/orders/{order_number}/track | Track order status (Phase 8)  |
+| GET    | /api/v1/shipping-methods            | Active shipping methods offered at checkout |
 
-**Checkout (`POST /api/v1/checkout`):** accepts only `address_id`. Every price, subtotal,
-discount, shipping fee and total is computed by `OrderService::placeOrder()` server-side; any
-client-supplied totals are ignored. The order and its lines are created inside a DB transaction
-with a `shipping_address_snapshot`, then the cart is cleared. Empty cart, inactive product, or a
-quantity exceeding stock cause a `422` validation error (`errors.cart` / `errors.cart_item`);
-an address that does not belong to the user returns `404`.
+**Checkout (`POST /api/v1/checkout`):** accepts `address_id` and an optional
+`shipping_method_id`. Every price, subtotal, discount, shipping fee and total is computed by
+`OrderService::placeOrder()` server-side; any client-supplied totals are ignored. The shipping
+fee comes from the selected `ShippingMethod` (`base_rate`, free over `free_over`), defaulting to
+the admin-defined default method when no id is sent. The order and its lines are created inside a
+DB transaction with a `shipping_address_snapshot` (plus a `shipping_method_name` snapshot), then
+the cart is cleared. Empty cart, inactive product, unavailable shipping method, or a quantity
+exceeding stock cause a `422` validation error (`errors.cart` / `errors.cart_item` /
+`errors.shipping_method_id`); an address that does not belong to the user returns `404`.
 
 **Order list response shape:**
 
@@ -300,6 +304,7 @@ an address that does not belong to the user returns `404`.
   "subtotal": "7.50",
   "discount": "0.00",
   "shipping_fee": "2.00",
+  "shipping_method": { "id": 1, "name": "Standard Shipping" },  // snapshot, null for legacy orders
   "tax": "0.00",
   "total": "9.50",
   "shipping_address": { "...": "snapshot of the address at placement time" },
@@ -321,8 +326,9 @@ an address that does not belong to the user returns `404`.
 ```
 
 Money fields are formatted as two-decimal strings (`FormatsMoney`). The shipping fee charged is
-`config('store.shipping_fee')` (`STORE_SHIPPING_FEE`); `GET /api/v1/settings/public` exposes the
-same value so the customer can preview it.
+computed server-side from the selected `ShippingMethod` (`base_rate`, free when the subtotal
+reaches `free_over`). `GET /api/v1/shipping-methods` exposes the active methods so the customer
+can preview/choose; the checkout accepts an optional `shipping_method_id`.
 
 ### 3.6 Reviews
 | Method | Endpoint                     | Description                        |

@@ -14,6 +14,8 @@ class Order extends Model
         'order_number',
         'user_id',
         'address_id',
+        'shipping_method_id',
+        'shipping_method_name',
         'coupon_id',
         'subtotal',
         'discount',
@@ -49,6 +51,11 @@ class Order extends Model
     public function coupon(): BelongsTo
     {
         return $this->belongsTo(Coupon::class);
+    }
+
+    public function shippingMethod(): BelongsTo
+    {
+        return $this->belongsTo(ShippingMethod::class)->withTrashed();
     }
 
     public function items(): HasMany

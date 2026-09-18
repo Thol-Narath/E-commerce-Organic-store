@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ReviewController;
 use App\Http\Controllers\Api\V1\SettingsController;
+use App\Http\Controllers\Api\V1\ShippingMethodController;
+use App\Http\Controllers\Api\V1\AdminShippingMethodController;
 use App\Http\Controllers\Api\V1\WishlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -65,6 +67,10 @@ Route::prefix('v1')->group(function () {
 
     // Public payment information (Phase 8).
     Route::get('payment-methods', [PaymentMethodController::class, 'index']);
+
+    // Public shipping methods offered at checkout (display + selection only;
+    // the fee is always recomputed server-side when the order is placed).
+    Route::get('shipping-methods', [ShippingMethodController::class, 'index']);
 
     // PayWay callback — public by design, protected by HMAC signature.
     Route::post('payments/payway/webhook', [PayWayWebhookController::class, 'handle']);
@@ -204,6 +210,15 @@ Route::prefix('v1')->group(function () {
             Route::post('supplier-orders/{order}/place', [AdminSupplierController::class, 'placeOrder'])->whereNumber('order');
             Route::post('supplier-orders/{order}/receive', [AdminSupplierController::class, 'receiveOrder'])->whereNumber('order');
             Route::post('supplier-orders/{order}/cancel', [AdminSupplierController::class, 'cancelOrder'])->whereNumber('order');
+
+            // Shipping methods (admin only): CRUD + status/default toggles.
+            Route::get('shipping-methods', [AdminShippingMethodController::class, 'index']);
+            Route::post('shipping-methods', [AdminShippingMethodController::class, 'store']);
+            Route::get('shipping-methods/{shipping_method}', [AdminShippingMethodController::class, 'show']);
+            Route::put('shipping-methods/{shipping_method}', [AdminShippingMethodController::class, 'update']);
+            Route::delete('shipping-methods/{shipping_method}', [AdminShippingMethodController::class, 'destroy']);
+            Route::patch('shipping-methods/{shipping_method}/toggle', [AdminShippingMethodController::class, 'toggle']);
+            Route::patch('shipping-methods/{shipping_method}/default', [AdminShippingMethodController::class, 'setDefault']);
         });
 
         // Admin-scoped routes: admin only.
@@ -227,6 +242,15 @@ Route::prefix('v1')->group(function () {
             Route::get('settings/logo', [SettingsController::class, 'getLogo']);
             Route::post('settings/logo', [SettingsController::class, 'uploadLogo']);
             Route::delete('settings/logo', [SettingsController::class, 'removeLogo']);
+
+            // About section image (admin only): homepage about image control.
+            Route::get('settings/about-image', [SettingsController::class, 'getAboutImage']);
+            Route::post('settings/about-image', [SettingsController::class, 'uploadAboutImage']);
+            Route::delete('settings/about-image', [SettingsController::class, 'removeAboutImage']);
+
+            // Store location, contact and Google Map config (admin only).
+            Route::get('settings/store-location', [SettingsController::class, 'getStoreLocation']);
+            Route::put('settings/store-location', [SettingsController::class, 'updateStoreLocation']);
 
             // Store branding (admin only): name, tagline, logo size.
             Route::put('settings/store-branding', [SettingsController::class, 'updateStoreBranding']);
