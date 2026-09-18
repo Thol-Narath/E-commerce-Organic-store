@@ -25,7 +25,10 @@ class PaymentMethodController extends Controller
         $data = $this->cacheService->rememberStatic(
             'payment-methods',
             CacheService::TTL_LONG,
-            fn () => ['methods' => $this->paymentService->methods()]
+            fn () => [
+                'methods' => $this->paymentService->methods(),
+                'currencies' => $this->paymentService->currencies(),
+            ]
         );
 
         return $this->success($data, 'Payment methods retrieved successfully.');

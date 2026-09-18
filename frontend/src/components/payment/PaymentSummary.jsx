@@ -1,12 +1,13 @@
 import { Card } from 'react-bootstrap';
 import OrderStatusBadge from '../orders/OrderStatusBadge';
-import { formatPrice } from '../../utils/format';
+import { formatAmount } from '../../utils/format';
 
 /**
  * Right-hand panel on the payment page: always shows the order number and
- * amount due; once an attempt exists it also shows method + attempt status.
+ * amount due (in the payment currency); once an attempt exists it also shows
+ * method + attempt status.
  */
-export default function PaymentSummary({ orderNumber, amount, payment = null }) {
+export default function PaymentSummary({ orderNumber, amount, payment = null, currency = 'USD' }) {
   return (
     <Card className="shadow-sm">
       <Card.Body>
@@ -22,7 +23,11 @@ export default function PaymentSummary({ orderNumber, amount, payment = null }) 
           </div>
           <div className="d-flex justify-content-between mb-2">
             <dt className="text-muted fw-normal">Amount due</dt>
-            <dd className="mb-0 fw-bold">{amount ? formatPrice(amount) : '—'}</dd>
+            <dd className="mb-0 fw-bold">{amount ? formatAmount(amount, currency) : '—'}</dd>
+          </div>
+          <div className="d-flex justify-content-between mb-2">
+            <dt className="text-muted fw-normal">Currency</dt>
+            <dd className="mb-0">{currency === 'KHR' ? 'KHR (៛)' : 'USD ($)'}</dd>
           </div>
           {payment?.payment_method_label && (
             <div className="d-flex justify-content-between mb-2">

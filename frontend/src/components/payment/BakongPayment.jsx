@@ -24,6 +24,7 @@ export default function BakongPayment({ payment, onRetry }) {
         value={payment?.qr_string}
         caption="Open your banking app and scan this KHQR"
         onRetry={onRetry}
+        currency={payment?.currency}
       />
 
       {payment?.deeplink && (

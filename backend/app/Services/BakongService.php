@@ -66,13 +66,16 @@ class BakongService
     }
 
     /**
-     * Generate a KHQR string and its MD5 hash for a payment.
+     * Generate a KHQR string and its MD5 hash for a payment in the currency of
+     * the payment attempt (USD or KHR). Falls back to USD for anything else.
      *
      * @return array{qr_string: string, md5: string, deeplink: ?string}
      */
-    public function generatePaymentQR(float $amount, string $orderNumber): array
+    public function generatePaymentQR(float $amount, string $orderNumber, string $currency = 'USD'): array
     {
         $this->assertConfigured();
+
+        $currency = strtoupper($currency) === 'KHR' ? 'KHR' : 'USD';
 
         $lifetimeMinutes = max(3, (int) config('bakong.lifetime', 15));
         $createdAt = now();
@@ -83,7 +86,7 @@ class BakongService
             'merchant_name' => $this->merchantName(),
             'merchant_city' => $this->merchantCity(),
             'amount' => $amount,
-            'currency' => $this->currency(),
+            'currency' => $currency,
             'bill_number' => $orderNumber,
             'store_label' => 'Organic Store',
             'terminal_label' => 'Web',
@@ -94,7 +97,7 @@ class BakongService
 
         $errors = $this->qrGenerator->validate($qrString, [
             'amount' => $amount,
-            'currency' => $this->currency(),
+            'currency' => $currency,
             'account_id' => $this->accountId(),
         ]);
 
@@ -119,7 +122,7 @@ class BakongService
         Log::info('Bakong KHQR generated', [
             'order' => $orderNumber,
             'amount' => $amount,
-            'currency' => $this->currency(),
+            'currency' => $currency,
             'md5' => $md5,
             'qr_length' => strlen($qrString),
             'expires_at' => $expiresAt->toIso8601String(),

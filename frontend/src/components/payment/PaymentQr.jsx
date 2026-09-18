@@ -10,7 +10,7 @@ import { RefreshIcon } from '../../assets/icons';
  * When no QR payload exists (e.g. generation failed before saving), a clear
  * error state is shown instead of a broken image, with an optional retry.
  */
-export default function PaymentQr({ value, caption, onRetry }) {
+export default function PaymentQr({ value, caption, onRetry, currency = 'USD' }) {
   if (!value) {
     return (
       <div className="payment-qr-error mx-auto">
@@ -28,10 +28,26 @@ export default function PaymentQr({ value, caption, onRetry }) {
     );
   }
 
+  const activeCurrency = currency === 'KHR' ? 'KHR' : 'USD';
+
   return (
     <div className="payment-qr-block">
       <div className="payment-qr mx-auto">
         <QRCodeSVG value={value} size={248} level="M" marginSize={4} />
+        <div className="payment-qr-currency" aria-label="USD and Cambodian Riel accepted">
+          <span
+            className={`payment-qr-currency-chip ${activeCurrency === 'USD' ? 'active' : ''}`}
+            title="US Dollar"
+          >
+            $
+          </span>
+          <span
+            className={`payment-qr-currency-chip ${activeCurrency === 'KHR' ? 'active' : ''}`}
+            title="Cambodian Riel"
+          >
+            ៛
+          </span>
+        </div>
       </div>
       <p className="payment-qr-scan-label mt-3 mb-1">Scan to Pay</p>
       {caption ? <p className="payment-qr-caption mb-0">{caption}</p> : null}

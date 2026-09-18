@@ -2871,6 +2871,47 @@ a.footer-contact-mail:hover {
   line-height: 1.35;
 }
 
+/* Currency selection card (USD / KHR) on the payment page. The badge shows
+   the currency symbol on a green ring, mirroring the QR currency chips. */
+.payment-currency-card {
+  align-items: center;
+  text-align: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.payment-currency-card .payment-method-radio {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+}
+
+.payment-currency-card {
+  position: relative;
+}
+
+.payment-currency-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin-top: 0.25rem;
+  border-radius: 50%;
+  border: 1.5px solid #a8b3a9;
+  color: #6c757d;
+  background: #f4f7f2;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.payment-currency-badge.selected {
+  border-color: #1b5e20;
+  background: #f1f8e9;
+  color: #1b5e20;
+}
+
 .payment-timer {
   display: inline-flex;
   align-items: center;
@@ -2898,6 +2939,9 @@ a.footer-contact-mail:hover {
    The surrounding layout adapts to the theme; the QR container itself does not. */
 .payment-qr {
   display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
   padding: 1rem;
   background: #fff;
   border: 1px solid var(--organic-border, #e9e3d8);
@@ -2910,6 +2954,34 @@ a.footer-contact-mail:hover {
   width: 100%;
   height: auto;
   max-width: 248px;
+}
+
+.payment-qr-currency {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.payment-qr-currency-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  border: 1.5px solid #a8b3a9;
+  background: #f4f7f2;
+  color: #6c757d;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.payment-qr-currency-chip.active {
+  border-color: #1b5e20;
+  background: #f1f8e9;
+  color: #1b5e20;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
 }
 
 .payment-qr-block {

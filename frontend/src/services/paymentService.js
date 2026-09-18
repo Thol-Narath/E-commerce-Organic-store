@@ -1,26 +1,35 @@
 import api from './api';
 
 /**
- * Payment (Phase 8) service. The React client only ever sends the chosen
- * payment method; the Laravel backend creates the PayWay transaction, holds
- * the merchant keys, and verifies every payment (webhook / check-transaction).
- * React receives display data only (QR string, deeplink, hosted checkout URL).
+ * Payment (Phase 8) service. The React client only sends the chosen payment
+ * method and currency; the Laravel backend creates the gateway transaction,
+ * holds the merchant keys, computes the amount (including KHR conversion) and
+ * verifies every payment (webhook / check-transaction). React receives display
+ * data only (QR string, deeplink, hosted checkout URL).
  */
 export const paymentService = {
   /**
-   * The payment methods the store currently accepts (backend-enabled).
+   * The payment methods + currencies the store currently accepts
+   * (backend-enabled and derived from server config).
    */
   async methods() {
     const { data } = await api.get('/payment-methods');
-    return data.data.methods || [];
+    const payload = data.data || {};
+    return {
+      methods: payload.methods || [],
+      currencies: payload.currencies || [],
+    };
   },
 
   /**
-   * Start a payment attempt for the pending order.
-   * Returns the payment resource plus order number/status.
+   * Start a payment attempt for the pending order in the chosen currency
+   * ('USD' or 'KHR'). Returns the payment resource plus order number/status.
    */
-  async create(orderNumber, paymentMethod) {
-    const { data } = await api.post(`/orders/${orderNumber}/payments`, { payment_method: paymentMethod });
+  async create(orderNumber, paymentMethod, currency = 'USD') {
+    const { data } = await api.post(`/orders/${orderNumber}/payments`, {
+      payment_method: paymentMethod,
+      currency,
+    });
     return data.data;
   },
 

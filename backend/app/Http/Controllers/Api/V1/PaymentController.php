@@ -40,6 +40,7 @@ class PaymentController extends Controller
                 $request->user(),
                 $order,
                 $request->input('payment_method'),
+                $request->input('currency'),
             );
         } catch (PaymentException $e) {
             return $this->error($e->getMessage(), null, $e->responseStatus());

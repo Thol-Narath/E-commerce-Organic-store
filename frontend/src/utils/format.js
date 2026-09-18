@@ -3,8 +3,23 @@
  * Prices from the API are already decimal strings, so parse them defensively.
  */
 export function formatPrice(value) {
+  return formatAmount(value, 'USD');
+}
+
+/**
+ * Format a numeric value in the given currency. Supports the two currencies
+ * the store accepts: USD ($) and KHR (Cambodian Riel, ៛). KHR is rendered as
+ * a whole number of riel.
+ */
+export function formatAmount(value, currency = 'USD') {
   const number = Number(value);
   if (Number.isNaN(number)) return '—';
+
+  if (currency === 'KHR') {
+    const riel = Math.round(number);
+    return `${new Intl.NumberFormat('en-US').format(riel)} ៛`;
+  }
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',

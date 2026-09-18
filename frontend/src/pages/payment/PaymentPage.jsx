@@ -4,6 +4,7 @@ import { Alert, Button, Card, Col, Container, Row } from 'react-bootstrap';
 import AbaPayPayment from '../../components/payment/AbaPayPayment';
 import BakongPayment from '../../components/payment/BakongPayment';
 import CardPayment from '../../components/payment/CardPayment';
+import CurrencySelector from '../../components/payment/CurrencySelector';
 import KhqrPayment from '../../components/payment/KhqrPayment';
 import OrderStatusBadge from '../../components/orders/OrderStatusBadge';
 import PaymentMethodSelector from '../../components/payment/PaymentMethodSelector';
@@ -31,24 +32,27 @@ export default function PaymentPage() {
 
   const [booting, setBooting] = useState(true);
   const [methods, setMethods] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [selectedMethod, setSelectedMethod] = useState('');
   const [orderTotal, setOrderTotal] = useState(null);
   const [creating, setCreating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activePayment, setActivePayment] = useState(null);
 
-  // Load the method list, order total and current status once.
+  // Load the method list, currencies, order total and current status once.
   useEffect(() => {
     let active = true;
 
     (async () => {
       try {
         const [list, order] = await Promise.all([
-          paymentService.methods().catch(() => []),
+          paymentService.methods().catch(() => ({ methods: [], currencies: [] })),
           orderService.get(orderNumber).catch(() => null),
         ]);
         if (active) {
-          setMethods(list || []);
+          setMethods(list?.methods || []);
+          setCurrencies(list?.currencies || []);
           setOrderTotal(order?.total ?? null);
         }
       } catch {
@@ -126,7 +130,7 @@ export default function PaymentPage() {
     }
     setCreating(true);
     try {
-      const payment = await paymentService.create(orderNumber, selectedMethod);
+      const payment = await paymentService.create(orderNumber, selectedMethod, selectedCurrency);
       setActivePayment(payment);
       setSelectedMethod('');
     } catch (err) {
@@ -134,7 +138,7 @@ export default function PaymentPage() {
     } finally {
       setCreating(false);
     }
-  }, [selectedMethod, orderNumber, showToast]);
+  }, [selectedMethod, selectedCurrency, orderNumber, showToast]);
 
   const handleManualCheck = useCallback(async () => {
     if (!activePayment) return;
@@ -152,10 +156,11 @@ export default function PaymentPage() {
   // Regenerate a QR attempt for the same method (used by the QR error state).
   const handleRetry = useCallback(async () => {
     const method = activePayment?.payment_method;
+    const currency = activePayment?.currency || 'USD';
     if (!method) return;
     setCreating(true);
     try {
-      const payment = await paymentService.create(orderNumber, method);
+      const payment = await paymentService.create(orderNumber, method, currency);
       setActivePayment(payment);
     } catch (err) {
       showToast(getErrorMessage(err), 'danger');
@@ -223,6 +228,14 @@ export default function PaymentPage() {
                   Prices and totals are always calculated and verified on our server.
                 </p>
 
+                <CurrencySelector
+                  currencies={currencies}
+                  orderTotal={orderTotal}
+                  value={selectedCurrency}
+                  onChange={setSelectedCurrency}
+                  disabled={creating}
+                />
+
                 <PaymentMethodSelector
                   methods={methods}
                   value={selectedMethod}
@@ -286,6 +299,7 @@ export default function PaymentPage() {
             orderNumber={orderNumber}
             amount={orderTotal || activePayment?.amount || status?.payment?.amount}
             payment={activePayment || status?.payment}
+            currency={activePayment?.currency || status?.payment?.currency || 'USD'}
           />
 
           <Card className="shadow-sm mt-3">

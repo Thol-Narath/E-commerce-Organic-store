@@ -75,6 +75,60 @@ class PaymentService
             ->all();
     }
 
+    /**
+     * The currencies a customer may pay in, with the display symbol and the
+     * server-side USD→KHR reference rate used to convert a payment amount.
+     * Amounts are always converted on the backend — never by the client.
+     */
+    public function currencies(): array
+    {
+        return [
+            ['code' => 'USD', 'symbol' => '$', 'rate' => (float) 1],
+            ['code' => 'KHR', 'symbol' => '៛', 'rate' => $this->khrRate()],
+        ];
+    }
+
+    /**
+     * The server-side USD→KHR exchange rate used for payment attempts.
+     */
+    public function khrRate(): float
+    {
+        return max(1, (float) config('store.khr_exchange_rate', 4100));
+    }
+
+    /**
+     * Resolve the currency a payment attempt is made in.
+     *
+     * A client-supplied USD/KHR choice wins; otherwise the gateway-configured
+     * default is used. Anything outside the supported set falls back to USD.
+     */
+    private function resolveCurrency(?string $requested, PaymentMethod $enum): string
+    {
+        $requested = strtoupper(trim((string) $requested));
+
+        if (! in_array($requested, ['USD', 'KHR'], true)) {
+            $requested = $enum->isBakong()
+                ? strtoupper((string) config('bakong.currency', 'USD'))
+                : strtoupper((string) config('payway.currency', 'USD'));
+        }
+
+        return in_array($requested, ['USD', 'KHR'], true) ? $requested : 'USD';
+    }
+
+    /**
+     * Convert an order total (stored in the base currency) into the payment
+     * currency. KHR has no minor units, so converted amounts are rounded to a
+     * whole riel using the store's exchange rate.
+     */
+    public function convertAmount(float $baseAmount, string $currency): string
+    {
+        if (strtoupper($currency) === 'KHR') {
+            return (string) (int) round($baseAmount * $this->khrRate());
+        }
+
+        return number_format($baseAmount, 2, '.', '');
+    }
+
     public function isMethodEnabled(string $method): bool
     {
         $enum = PaymentMethod::tryFrom($method);
@@ -112,7 +166,7 @@ class PaymentService
      * @throws PaymentException     for business-rule violations
      * @throws PaymentGatewayException when the gateway refuses/unavailable
      */
-    public function createPayment(User $user, Order $order, string $paymentMethod): Payment
+    public function createPayment(User $user, Order $order, string $paymentMethod, ?string $currency = null): Payment
     {
         $enum = PaymentMethod::tryFrom($paymentMethod);
 
@@ -136,15 +190,14 @@ class PaymentService
             throw new PaymentException('This order can no longer be paid.', 409);
         }
 
-        $amount = (float) $order->total;
+        $baseAmount = (float) $order->total;
 
-        if ($amount <= 0) {
+        if ($baseAmount <= 0) {
             throw new PaymentException('The order total must be greater than zero.', 422);
         }
 
-        $currency = $enum->isBakong()
-            ? strtoupper((string) config('bakong.currency', 'USD'))
-            : strtoupper((string) config('payway.currency', 'USD'));
+        $currency = $this->resolveCurrency($currency, $enum);
+        $amount = $this->convertAmount($baseAmount, $currency);
 
         $lifetime = $enum->isBakong()
             ? max(3, (int) config('bakong.lifetime', 15))
@@ -448,6 +501,7 @@ class PaymentService
         $qrData = $this->bakong->generatePaymentQR(
             (float) $payment->amount,
             $order->order_number,
+            (string) $payment->currency,
         );
 
         return [
@@ -529,12 +583,14 @@ class PaymentService
             'lastname' => $nameParts[1] ?? '',
             'email' => (string) $user->email,
             'phone' => (string) ($user->phone ?: ($snapshot['recipient_phone'] ?? '')),
-            'items' => $order->items->map(fn ($item) => [
-                'name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'price' => (float) $item->unit_price,
-            ])->values()->all(),
-            'shipping' => (float) $order->shipping_fee,
+            'items' => $order->items->map(function ($item) use ($payment) {
+                return [
+                    'name' => $item->product_name,
+                    'quantity' => $item->quantity,
+                    'price' => (float) $this->convertAmount((float) $item->unit_price, $payment->currency),
+                ];
+            })->values()->all(),
+            'shipping' => (float) $this->convertAmount((float) $order->shipping_fee, $payment->currency),
             'return_url' => $this->payWay->absoluteUrl((string) config('payway.callback_url')),
             'cancel_url' => $this->payWay->absoluteUrl('/payment/'.$order->order_number.'?status=cancelled'),
             'continue_success_url' => $this->payWay->absoluteUrl((string) config('payway.return_url')),
