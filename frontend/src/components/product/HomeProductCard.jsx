@@ -30,6 +30,8 @@ export default function HomeProductCard({ product }) {
   const wishlisted = isWishlisted(product.id);
   const wishlistBusy = isProductBusy(product.id);
   const outOfStock = product.availability === 'out_of_stock';
+  const inactive = product.status === 'inactive';
+  const unavailable = outOfStock || inactive;
 
   const ensureAuth = () => {
     if (user) return true;
@@ -147,14 +149,14 @@ export default function HomeProductCard({ product }) {
             size="sm"
             className="home-product-add-btn"
             onClick={handleAddToCart}
-            disabled={adding || outOfStock}
+            disabled={adding || unavailable}
           >
             {adding ? (
               <Spinner animation="border" size="sm" />
             ) : (
               <>
                 <CartIcon size={14} />
-                {outOfStock ? 'Out of Stock' : 'Add'}
+                {outOfStock ? 'Out of Stock' : inactive ? 'Unavailable' : 'Add'}
               </>
             )}
           </Button>

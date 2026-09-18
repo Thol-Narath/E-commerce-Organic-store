@@ -33,6 +33,7 @@ import AdminOrderDetail from '../pages/admin/AdminOrderDetail';
 import AdminInventory from '../pages/admin/AdminInventory';
 import AdminInventoryDetail from '../pages/admin/AdminInventoryDetail';
 import AdminBanners from '../pages/admin/AdminBanners';
+import AdminContactMessages from '../pages/admin/AdminContactMessages';
 import AdminSettings from '../pages/admin/AdminSettings';
 import AdminSuppliers from '../pages/admin/AdminSuppliers';
 import AdminSupplierOrder from '../pages/admin/AdminSupplierOrder';
@@ -192,6 +193,7 @@ export default function AppRoutes() {
         <Route path="supplier-orders/:id" element={<AdminSupplierOrderDetail />} />
         <Route path="categories" element={<AdminCategories />} />
         <Route path="banners" element={<AdminBanners />} />
+        <Route path="messages" element={<AdminContactMessages />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
 

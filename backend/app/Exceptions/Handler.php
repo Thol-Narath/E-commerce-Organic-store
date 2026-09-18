@@ -82,10 +82,13 @@ class Handler extends ExceptionHandler
      */
     protected function invalidJson($request, ValidationException $exception): JsonResponse
     {
+        $errors = $exception->errors();
+        $firstMessage = collect($errors)->flatten()->first() ?? 'The given data was invalid.';
+
         return response()->json([
             'success' => false,
-            'message' => 'The given data was invalid.',
-            'data' => $exception->errors(),
+            'message' => $firstMessage,
+            'data' => $errors,
         ], $exception->status);
     }
 

@@ -34,6 +34,7 @@ export default function ProductCard({ product }) {
   const percent = discountPercent(product.price, product.compare_at_price);
   const wishlisted = isWishlisted(product.id);
   const wishlistBusy = isProductBusy(product.id);
+  const unavailable = product.availability === 'out_of_stock' || product.status === 'inactive';
 
   const ensureAuth = () => {
     if (user) return true;
@@ -140,7 +141,7 @@ export default function ProductCard({ product }) {
               size="sm"
               className="flex-grow-1 d-inline-flex align-items-center justify-content-center gap-2"
               onClick={handleAddToCart}
-              disabled={adding || product.availability === 'out_of_stock'}
+              disabled={adding || unavailable}
               aria-label={`Add ${product.name} to cart`}
             >
               {adding ? (
@@ -148,7 +149,7 @@ export default function ProductCard({ product }) {
               ) : (
                 <CartIcon size={16} />
               )}
-              {product.availability === 'out_of_stock' ? 'Out of Stock' : 'Add to Cart'}
+              {product.availability === 'out_of_stock' ? 'Out of Stock' : product.status === 'inactive' ? 'Unavailable' : 'Add to Cart'}
             </Button>
             <Button
               variant={wishlisted ? 'outline-danger' : 'outline-secondary'}

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AdminProductController;
 use App\Http\Controllers\Api\V1\AdminBannerController;
 use App\Http\Controllers\Api\V1\AdminSupplierController;
 use App\Http\Controllers\Api\V1\AddressController;
+use App\Http\Controllers\Api\V1\AdminContactController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BakongPaymentController;
 use App\Http\Controllers\Api\V1\CartController;
@@ -51,6 +52,10 @@ Route::prefix('v1')->group(function () {
     Route::get('blogs', [\App\Http\Controllers\Api\V1\BlogController::class, 'index']);
     Route::get('blogs/{slug}', [\App\Http\Controllers\Api\V1\BlogController::class, 'show']);
     Route::post('newsletter/subscribe', [\App\Http\Controllers\Api\V1\NewsletterController::class, 'subscribe']);
+
+    // Public contact form submissions (rate-limited to guard against spam).
+    Route::post('contact', [\App\Http\Controllers\Api\V1\ContactController::class, 'store'])
+        ->middleware('throttle:5,1');
 
     // Public stats (active product/category counts)
     Route::get('stats', [\App\Http\Controllers\Api\V1\SettingsController::class, 'stats']);
@@ -228,6 +233,13 @@ Route::prefix('v1')->group(function () {
 
             // Store contact details (admin only): address, phone, email.
             Route::put('settings/contact', [SettingsController::class, 'updateContact']);
+
+            // Customer contact inbox (admin only).
+            Route::get('contact-messages', [AdminContactController::class, 'index']);
+            Route::get('contact-messages/{contactMessage}', [AdminContactController::class, 'show']);
+            Route::patch('contact-messages/{contactMessage}/read', [AdminContactController::class, 'markRead']);
+            Route::post('contact-messages/{contactMessage}/reply', [AdminContactController::class, 'reply']);
+            Route::delete('contact-messages/{contactMessage}', [AdminContactController::class, 'destroy']);
         });
 
         // Staff-scoped routes: staff or admin.

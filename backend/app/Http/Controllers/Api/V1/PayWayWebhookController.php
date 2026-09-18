@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers\Api\V1;
-
 use App\Exceptions\PaymentException;
 use App\Exceptions\PaymentGatewayException;
 use App\Http\Controllers\Controller;

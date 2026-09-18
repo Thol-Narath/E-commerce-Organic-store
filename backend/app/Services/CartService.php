@@ -82,7 +82,7 @@ class CartService
     {
         $cart = $this->activeCart($user);
         $line = $cart->items()->find($cartItemId);
-
+//
         if (! $line) {
             return null;
         }
@@ -124,7 +124,7 @@ class CartService
         $this->assertProductAvailable($product);
 
         $total = $currentQuantity + $quantityToAdd;
-        $this->assertQuantityInRange($product, $quantityToAdd);
+        // $this->assertQuantityInRange($product, $quantityToAdd);
 
         if ($total > $product->stock_quantity) {
             $remaining = max(0, $product->stock_quantity - $currentQuantity);
@@ -144,7 +144,7 @@ class CartService
     public function assertSetAllowed(Product $product, int $quantity): void
     {
         $this->assertProductAvailable($product);
-        $this->assertQuantityInRange($product, $quantity);
+        // $this->assertQuantityInRange($product, $quantity);
 
         if ($quantity > $product->stock_quantity) {
             throw ValidationException::withMessages([
@@ -170,14 +170,14 @@ class CartService
     /**
      * @throws ValidationException
      */
-    protected function assertQuantityInRange(Product $product, int $quantity): void
-    {
-        if ($quantity < $product->min_order_qty) {
-            throw ValidationException::withMessages([
-                'quantity' => "The minimum order quantity is {$product->min_order_qty}.",
-            ]);
-        }
-    }
+    // protected function assertQuantityInRange(Product $product, int $quantity): void
+    // {
+    //     if ($quantity < $product->min_order_qty) {
+    //         throw ValidationException::withMessages([
+    //             'quantity' => "The minimum order quantity is {$product->min_order_qty}.",
+    //         ]);
+    //     }
+    // }
 
     protected function loadProduct(int $productId): Product
     {

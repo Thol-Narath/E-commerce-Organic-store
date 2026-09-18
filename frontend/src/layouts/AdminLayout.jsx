@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Nav } from 'react-bootstrap';
-import { StoreIcon, TagIcon, TruckIcon, LeafIcon, BoxesIcon, ExternalLinkIcon, ImageIcon, SettingsIcon, FactoryIcon } from '../assets/icons';
+import { StoreIcon, TagIcon, TruckIcon, LeafIcon, BoxesIcon, ExternalLinkIcon, ImageIcon, SettingsIcon, FactoryIcon, MailIcon } from '../assets/icons';
 import { settingsService } from '../services/settingsService';
 
 /**
@@ -28,6 +28,7 @@ export default function AdminLayout() {
     { to: '/admin/suppliers', label: 'Suppliers', icon: FactoryIcon, match: (p) => p.startsWith('/admin/suppliers') || p.startsWith('/admin/supplier-orders') },
     { to: '/admin/categories', label: 'Categories', icon: TagIcon, match: (p) => p.startsWith('/admin/categories') },
     { to: '/admin/banners', label: 'Banners', icon: ImageIcon, match: (p) => p.startsWith('/admin/banners') },
+    { to: '/admin/messages', label: 'Messages', icon: MailIcon, match: (p) => p === '/admin/messages' || p.startsWith('/admin/messages/') },
     { to: '/admin/settings', label: 'Settings', icon: SettingsIcon, match: (p) => p.startsWith('/admin/settings') },
   ];
 

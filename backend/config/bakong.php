@@ -41,4 +41,12 @@ return [
     'enabled' => (bool) env('BAKONG_ENABLED', true),
 
     'verify_transaction' => (bool) env('BAKONG_VERIFY_TRANSACTION', true),
+
+    /*
+    | Minimum seconds between backend-initiated Bakong verification calls for
+    | the same pending attempt. The Bakong Open API has a hard daily limit of
+    | 100 requests per account, so aggressive polling (e.g. 15s) exhausts the
+    | quota within minutes. 300s keeps one payment attempt at ~4 checks.
+    */
+    'verify_throttle' => (int) env('BAKONG_VERIFY_THROTTLE_SECONDS', 300),
 ];

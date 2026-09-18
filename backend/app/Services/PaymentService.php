@@ -39,9 +39,10 @@ class PaymentService
 {
     /**
      * Minimum seconds between backend-initiated Bakong verification calls for
-     * the same pending attempt (the SPA polls far more often than this).
+     * the same pending attempt (default 300s — the Bakong Open API only allows
+     * 100 requests/day/account, so aggressive polling exhausts the quota).
      */
-    private const BAKONG_VERIFY_THROTTLE_SECONDS = 15;
+    private const BAKONG_VERIFY_THROTTLE_SECONDS = 300;
 
     public function __construct(
         private readonly AbaPaywayService $payWay,
@@ -246,23 +247,16 @@ class PaymentService
     }
 
     /**
-     * Re-verify a pending Bakong attempt against the Bakong Open API, but at
-     * most once every VERIFY_THROTTLE_SECONDS per attempt — the SPA polls every
-     * few seconds and we don't want to hammer the gateway on every poll.
+     * Re-verify a pending Bakong attempt against the Bakong Open API.
      *
-     * A transient gateway error is not fatal: the attempt stays pending and the
-     * next due poll (or the scheduler) retries it.
+     * The throttle lives inside refreshBakong() (not here) so that every
+     * verification path — SPA status polling, the manual "Check payment
+     * status" button, and the periodic scheduler job — honours the same
+     * per-attempt cooldown. A transient gateway error is not fatal: the
+     * attempt stays pending and the next run retries it.
      */
     private function verifyBakongIfDue(Payment $payment): void
     {
-        $throttleKey = 'bakong.verify:'.$payment->id;
-
-        if (Cache::has($throttleKey)) {
-            return;
-        }
-
-        Cache::put($throttleKey, true, self::BAKONG_VERIFY_THROTTLE_SECONDS);
-
         try {
             $this->refresh($payment);
         } catch (PaymentGatewayException $e) {
@@ -395,12 +389,29 @@ class PaymentService
 
     /**
      * Check a Bakong payment via the check_transaction_by_md5 endpoint.
+     *
+     * Throttled per attempt so the same pending payment is not re-checked more
+     * often than config('bakong.verify_throttle') seconds — regardless of who
+     * asked (poll, button, scheduler), because every Bakong API call counts
+     * against the account's 100-requests/day limit.
      */
     private function refreshBakong(Payment $payment): Payment
     {
         if (! $payment->gateway_transaction_id) {
             return $payment;
         }
+
+        $throttleKey = 'bakong.verify:'.$payment->id;
+
+        if (Cache::has($throttleKey)) {
+            return $payment;
+        }
+
+        Cache::put(
+            $throttleKey,
+            true,
+            max(15, (int) config('bakong.verify_throttle', self::BAKONG_VERIFY_THROTTLE_SECONDS))
+        );
 
         try {
             $result = $this->bakong->checkTransaction($payment->gateway_transaction_id);

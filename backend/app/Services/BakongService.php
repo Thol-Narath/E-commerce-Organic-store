@@ -150,14 +150,15 @@ class BakongService
     {
         $this->assertConfigured();
 
-        $response = $this->apiRequest('POST', '/generate_deeplink_by_qr', [
-            'qr' => $qrString,
-            'sourceInfo' => [
-                'appIconUrl' => (string) config('app.url').'/favicon.ico',
-                'appName' => (string) config('app.name', 'Organic Store'),
-                'appDeepLinkCallback' => (string) config('app.url').'/payment/success',
-            ],
-        ]);
+        $payload = ['qr' => $qrString];
+
+        $sourceInfo = $this->sourceInfo();
+
+        if ($sourceInfo !== null) {
+            $payload['sourceInfo'] = $sourceInfo;
+        }
+
+        $response = $this->apiRequest('POST', '/generate_deeplink_by_qr', $payload);
 
         if (! is_array($response) || isset($response['errorCode'])) {
             return null;
@@ -165,7 +166,37 @@ class BakongService
 
         $data = $response['data'] ?? null;
 
-        return is_array($data) ? ($data['deeplink'] ?? null) : null;
+        if (! is_array($data)) {
+            return null;
+        }
+
+        // Bakong returns the deeplink as `fullLink` (plus a shorter `shortLink`);
+        // older/other responses may use `deeplink`. Accept any of them.
+        return $data['fullLink'] ?? $data['shortLink'] ?? $data['deeplink'] ?? null;
+    }
+
+    /**
+     * Optional app branding sent with a deeplink request.
+     *
+     * Bakong's deeplink provider fetches these URLs, so local/non-HTTPS values
+     * (the dev `http://localhost:8000` APP_URL) make the request fail with
+     * errorCode 4 and no deeplink. Omit `sourceInfo` entirely in that case.
+     *
+     * @return array{appIconUrl: string, appName: string, appDeepLinkCallback: string}|null
+     */
+    private function sourceInfo(): ?array
+    {
+        $appUrl = rtrim((string) config('app.url'), '/');
+
+        if (! str_starts_with($appUrl, 'https://')) {
+            return null;
+        }
+
+        return [
+            'appIconUrl' => $appUrl.'/favicon.ico',
+            'appName' => (string) config('app.name', 'Organic Store'),
+            'appDeepLinkCallback' => $appUrl.'/payment/success',
+        ];
     }
 
     /**
