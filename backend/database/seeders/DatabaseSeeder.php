@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             ReviewSeeder::class,
             NotificationSeeder::class,
             SettingSeeder::class,
+            ShippingMethodSeeder::class,
             ContentSeeder::class,
         ]);
     }

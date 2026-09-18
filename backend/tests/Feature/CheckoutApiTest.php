@@ -123,17 +123,67 @@ class CheckoutApiTest extends TestCase
         $this->assertEquals('11.00', $order->total);
     }
 
-    public function test_shipping_fee_is_taken_from_store_config(): void
+    public function test_shipping_fee_comes_from_the_default_shipping_method(): void
     {
-        config(['store.shipping_fee' => 5.50]);
+        $token = $this->login($this->customer());
+        $this->addToCart($token, $this->product(['price' => 10.00]), 1);
+
+        // The seeded default method (Standard, $2.00) applies when the client
+        // does not choose a method — never a client-supplied fee.
+        $this->withToken($token)->postJson('/api/v1/checkout', ['address_id' => $this->ownAddressId()])
+            ->assertStatus(201)
+            ->assertJsonPath('data.shipping_fee', '2.00')
+            ->assertJsonPath('data.shipping_method.name', 'Standard Shipping')
+            ->assertJsonPath('data.total', '12.00');
+    }
+
+    public function test_shipping_fee_uses_the_selected_shipping_method(): void
+    {
+        $express = \App\Models\ShippingMethod::where('code', 'express')->firstOrFail();
 
         $token = $this->login($this->customer());
         $this->addToCart($token, $this->product(['price' => 10.00]), 1);
 
-        $this->withToken($token)->postJson('/api/v1/checkout', ['address_id' => $this->ownAddressId()])
+        $this->withToken($token)->postJson('/api/v1/checkout', [
+            'address_id' => $this->ownAddressId(),
+            'shipping_method_id' => $express->id,
+        ])
             ->assertStatus(201)
-            ->assertJsonPath('data.shipping_fee', '5.50')
-            ->assertJsonPath('data.total', '15.50');
+            ->assertJsonPath('data.shipping_fee', '8.00')
+            ->assertJsonPath('data.shipping_method.name', 'Express Shipping')
+            ->assertJsonPath('data.total', '18.00');
+    }
+
+    public function test_shipping_is_free_when_subtotal_reaches_free_over_threshold(): void
+    {
+        $standard = \App\Models\ShippingMethod::where('code', 'standard')->firstOrFail();
+
+        $token = $this->login($this->customer());
+        $this->addToCart($token, $this->product(['price' => 25.00]), 2); // subtotal 50.00
+
+        $this->withToken($token)->postJson('/api/v1/checkout', [
+            'address_id' => $this->ownAddressId(),
+            'shipping_method_id' => $standard->id,
+        ])
+            ->assertStatus(201)
+            ->assertJsonPath('data.subtotal', '50.00')
+            ->assertJsonPath('data.shipping_fee', '0.00')
+            ->assertJsonPath('data.total', '50.00');
+    }
+
+    public function test_checkout_rejects_an_unavailable_shipping_method(): void
+    {
+        $inactive = \App\Models\ShippingMethod::factory()->create(['is_active' => false]);
+
+        $token = $this->login($this->customer());
+        $this->addToCart($token, $this->product(), 1);
+
+        $this->withToken($token)->postJson('/api/v1/checkout', [
+            'address_id' => $this->ownAddressId(),
+            'shipping_method_id' => $inactive->id,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['shipping_method_id'], 'data');
     }
 
     public function test_checkout_total_is_subtotal_plus_shipping(): void

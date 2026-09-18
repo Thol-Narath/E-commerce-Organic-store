@@ -7,12 +7,14 @@ import StorePagination from '../common/StorePagination';
  */
 export default function ProductPagination({ pagination = {}, onPageChange, disabled }) {
   return (
-    <StorePagination
-      pagination={pagination}
-      onPageChange={onPageChange}
-      disabled={disabled}
-      showInfo={false}
-      ariaLabel="Product pagination"
-    />
+    <div className="product-pagination-wrap">
+      <StorePagination
+        pagination={pagination}
+        onPageChange={onPageChange}
+        disabled={disabled}
+        showInfo={false}
+        ariaLabel="Product pagination"
+      />
+    </div>
   );
 }

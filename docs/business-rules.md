@@ -114,7 +114,7 @@ All seeded passwords are `password`.
 3. Every line must be an **active, in-stock product** and the quantity must not exceed `stock_quantity`; otherwise checkout fails atomically with `422 errors.cart_item` (no partial order).
 4. Order + `order_items` (with `product_name`, `product_sku`, `unit_price` snapshots) + `shipping_address_snapshot` + **stock reservation** (`InventoryService::sell`, one `sale` ledger entry per line, re-validated under a row lock) are created inside a **single DB transaction**, then the cart is cleared. Any failure rolls back the order, the ledger and the stock decrement together.
 5. `order_number` is generated server-side (unique). New orders start at `status = pending`, `payment_status = unpaid`; `placed_at` records placement time.
-6. Shipping fee is `config('store.shipping_fee')` (`STORE_SHIPPING_FEE`). Exposed read-only to the customer for display via `GET /api/v1/settings/public`.
+6. Shipping fee is computed server-side from the chosen `ShippingMethod` (via `ShippingMethodService`): its `base_rate`, reduced to zero when the subtotal reaches the method's `free_over` threshold. The client never sends the fee — it selects a `shipping_method_id` (or omits it to use the admin-defined default). Active methods are exposed read-only for display via `GET /api/v1/shipping-methods`; `config('store.shipping_fee')` is only a bootstrapping fallback when no method exists.
 7. **Duplicate submission** after a successful order is rejected (the cart is already empty).
 
 ---

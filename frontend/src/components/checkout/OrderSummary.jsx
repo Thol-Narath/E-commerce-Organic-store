@@ -6,7 +6,7 @@ import { formatPrice } from '../../utils/format';
  * Checkout order summary: line items with unit prices, subtotal, shipping fee
  * (server-provided) and grand total. All figures originate from the backend.
  */
-export default function OrderSummary({ items, subtotal, shippingFee, discount = '0.00', total }) {
+export default function OrderSummary({ items, subtotal, shippingFee, shippingMethodName, discount = '0.00', total }) {
   return (
     <Card className="shadow-sm">
       <Card.Body>
@@ -43,7 +43,9 @@ export default function OrderSummary({ items, subtotal, shippingFee, discount = 
             <dd className="mb-0">{formatPrice(subtotal)}</dd>
           </div>
           <div className="d-flex justify-content-between mb-1">
-            <dt className="text-muted fw-normal">Shipping</dt>
+            <dt className="text-muted fw-normal">
+              Shipping{shippingMethodName ? ` (${shippingMethodName})` : ''}
+            </dt>
             <dd className="mb-0">{formatPrice(shippingFee)}</dd>
           </div>
           {Number(discount) > 0 && (

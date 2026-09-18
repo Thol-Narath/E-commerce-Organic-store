@@ -20,6 +20,9 @@ class CheckoutRequest extends FormRequest
      * verified by the OrderService (404 for another customer's address),
      * cart emptiness and stock/availability are enforced server-side.
      *
+     * The shipping_method_id only selects which shipping method to price; the
+     * fee itself is always recomputed by the OrderService.
+     *
      * Order totals are NEVER accepted from the client — the OrderService
      * calculates every figure from live product prices.
      */
@@ -27,6 +30,7 @@ class CheckoutRequest extends FormRequest
     {
         return [
             'address_id' => ['required', 'integer', Rule::exists('addresses', 'id')],
+            'shipping_method_id' => ['sometimes', 'nullable', 'integer', Rule::exists('shipping_methods', 'id')],
         ];
     }
 }

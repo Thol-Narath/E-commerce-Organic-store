@@ -39,6 +39,7 @@ import AdminSuppliers from '../pages/admin/AdminSuppliers';
 import AdminSupplierOrder from '../pages/admin/AdminSupplierOrder';
 import AdminSupplierOrders from '../pages/admin/AdminSupplierOrders';
 import AdminSupplierOrderDetail from '../pages/admin/AdminSupplierOrderDetail';
+import AdminShippingMethods from '../pages/admin/AdminShippingMethods';
 
 /** Redirect /orders/:orderNumber → /account/orders/:orderNumber */
 function OrderRedirect() {
@@ -191,6 +192,7 @@ export default function AppRoutes() {
         <Route path="suppliers/order" element={<AdminSupplierOrder />} />
         <Route path="supplier-orders" element={<AdminSupplierOrders />} />
         <Route path="supplier-orders/:id" element={<AdminSupplierOrderDetail />} />
+        <Route path="shipping-methods" element={<AdminShippingMethods />} />
         <Route path="categories" element={<AdminCategories />} />
         <Route path="banners" element={<AdminBanners />} />
         <Route path="messages" element={<AdminContactMessages />} />
