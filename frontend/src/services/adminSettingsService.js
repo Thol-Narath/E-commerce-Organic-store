@@ -54,4 +54,9 @@ export const adminSettingsService = {
     const { data } = await api.put('/admin/settings/contact', payload);
     return data.data;
   },
+
+  async sendTestEmail(payload) {
+    const { data } = await api.post('/admin/settings/test-email', payload);
+    return data;
+  },
 };

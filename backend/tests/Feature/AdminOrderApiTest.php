@@ -1,7 +1,5 @@
 <?php
-
 namespace Tests\Feature;
-
 use App\Models\Address;
 use App\Models\Order;
 use App\Models\OrderItem;

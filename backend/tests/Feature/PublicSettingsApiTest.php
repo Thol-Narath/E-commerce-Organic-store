@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Mail\TestMail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class PublicSettingsApiTest extends TestCase
@@ -13,6 +15,7 @@ class PublicSettingsApiTest extends TestCase
     {
         parent::setUp();
         $this->seed();
+        config(['mail.mailers.smtp.password' => 'test-app-password']);
     }
 
     public function test_public_settings_exposes_store_and_shipping_display_info(): void
@@ -78,6 +81,67 @@ class PublicSettingsApiTest extends TestCase
             'tagline' => '',
             'logo_height' => 9999,
         ])->assertStatus(422);
+    }
+
+    public function test_admin_can_send_test_email_to_any_recipient(): void
+    {
+        Mail::fake();
+
+        $token = $this->loginAs('admin@organicstore.test');
+
+        $response = $this->withToken($token)->postJson('/api/v1/admin/settings/test-email', [
+            'email' => 'shop.owner@example.com',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.email', 'shop.owner@example.com');
+
+        Mail::assertSent(TestMail::class, function (TestMail $mail) {
+            return $mail->hasTo('shop.owner@example.com');
+        });
+    }
+
+    public function test_test_email_defaults_to_from_address(): void
+    {
+        Mail::fake();
+
+        $token = $this->loginAs('admin@organicstore.test');
+
+        $this->withToken($token)->postJson('/api/v1/admin/settings/test-email', [])
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+    }
+
+    public function test_test_email_requires_admin_role(): void
+    {
+        $token = $this->loginAs('maria@example.com');
+
+        $this->withToken($token)->postJson('/api/v1/admin/settings/test-email', [
+            'email' => 'shop.owner@example.com',
+        ])->assertStatus(403);
+    }
+
+    public function test_test_email_validates_recipient(): void
+    {
+        $token = $this->loginAs('admin@organicstore.test');
+
+        $this->withToken($token)->postJson('/api/v1/admin/settings/test-email', [
+            'email' => 'not-an-email',
+        ])->assertStatus(422)
+            ->assertJsonPath('data.email.0', 'The email field must be a valid email address.');
+    }
+
+    public function test_test_email_explains_unset_placeholder_password(): void
+    {
+        config(['mail.mailers.smtp.password' => 'REPLACE_WITH_YOUR_GMAIL_APP_PASSWORD']);
+
+        $token = $this->loginAs('admin@organicstore.test');
+
+        $this->withToken($token)->postJson('/api/v1/admin/settings/test-email', [])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('data', null);
     }
 
     private function loginAs(string $email): string

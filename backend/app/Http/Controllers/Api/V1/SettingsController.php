@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TestMail;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Review;
@@ -11,6 +12,8 @@ use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
@@ -165,6 +168,56 @@ class SettingsController extends Controller
             'phone' => $values['store.contact_phone'],
             'email' => $values['store.contact_email'],
         ], 'Contact information updated successfully.');
+    }
+
+    /**
+     * POST /api/v1/admin/settings/test-email — verify email delivery by sending
+     * a real test message (admin only). Rate-limited to avoid spam.
+     *
+     * Body:
+     *   email — optional recipient; defaults to the configured mail from address.
+     */
+    public function sendTestEmail(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['nullable', 'email', 'max:190'],
+        ]);
+
+        $recipient = trim((string) ($validated['email'] ?? '')
+            ?: config('mail.from.address')
+            ?: $request->user()->email);
+
+        // Catch the most common misconfiguration up-front: the placeholder
+        // password shipped in .env.example was never replaced. SMTP servers
+        // answer with an opaque 535 error, so explain the fix instead.
+        $smtpPassword = (string) config('mail.mailers.smtp.password');
+
+        if ($smtpPassword === 'REPLACE_WITH_YOUR_GMAIL_APP_PASSWORD') {
+            return $this->error(
+                'No real email password is set. Open backend/.env, replace MAIL_PASSWORD with a Gmail App Password generated at https://myaccount.google.com/apppasswords (2-Step Verification must be enabled), then restart the server.',
+                null,
+                422
+            );
+        }
+
+        $storeName = Setting::where('key', 'store.name')->value('value')
+            ?: config('app.name', 'Organic Store');
+
+        try {
+            Mail::to($recipient)->send(new TestMail($storeName));
+        } catch (\Throwable $e) {
+            Log::error('Test email failed to send', [
+                'recipient' => $recipient,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->error('Test email could not be sent. Check your MAIL_* settings in backend/.env: '.$e->getMessage(), null, 502);
+        }
+
+        return $this->success(
+            ['email' => $recipient],
+            "Test email sent to {$recipient}. Check your inbox."
+        );
     }
 
     /**

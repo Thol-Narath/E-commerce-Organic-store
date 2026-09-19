@@ -40,6 +40,7 @@ class DatabaseStructureTest extends TestCase
             'carts', 'cart_items', 'wishlists', 'wishlist_items', 'orders',
             'order_items', 'payments', 'reviews', 'coupons', 'coupon_usages',
             'inventory_transactions', 'notifications', 'settings',
+            'contact_messages',
         ];
 
         foreach ($tables as $table) {

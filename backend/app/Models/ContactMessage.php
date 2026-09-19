@@ -21,11 +21,13 @@ class ContactMessage extends Model
         'replied_by',
         'replied_at',
         'read_at',
+        'acknowledged_at',
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
         'replied_at' => 'datetime',
+        'acknowledged_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

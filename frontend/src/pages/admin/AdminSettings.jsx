@@ -4,7 +4,7 @@ import { adminSettingsService } from '../../services/adminSettingsService';
 import { settingsService } from '../../services/settingsService';
 import { normalizeError } from '../../services/api';
 import { buildMapSrc, mapSourceHint } from '../../utils/maps';
-import { ImageIcon, MapPinIcon, SaveIcon, StoreIcon } from '../../assets/icons';
+import { MailIcon, ImageIcon, MapPinIcon, SaveIcon, StoreIcon } from '../../assets/icons';
 
 const DEFAULT_LOGO_HEIGHT = 42;
 
@@ -46,6 +46,11 @@ export default function AdminSettings() {
   const fileInputRef = useRef(null);
   const aboutFileInputRef = useRef(null);
 
+  const [testEmail, setTestEmail] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testError, setTestError] = useState('');
+  const [testSuccess, setTestSuccess] = useState('');
+
   const locMapSrc = useMemo(
     () => buildMapSrc({ latitude: locLatitude, longitude: locLongitude, embedUrl: locEmbedUrl }),
     [locLatitude, locLongitude, locEmbedUrl],
@@ -79,6 +84,7 @@ export default function AdminSettings() {
         setContactAddress(contact.address || '');
         setContactPhone(contact.phone || '');
         setContactEmail(contact.email || '');
+        setTestEmail(contact.email || '');
         setLocStoreName(locationData?.store_name || store.name || '');
         setLocAddress(locationData?.address ?? contact.address ?? '');
         setLocPhone(locationData?.phone ?? contact.phone ?? '');
@@ -285,6 +291,23 @@ export default function AdminSettings() {
       setError(normalizeError(err).message);
     } finally {
       setSavingContact(false);
+    }
+  };
+
+  const handleSendTestEmail = async (e) => {
+    e.preventDefault();
+    setSendingTest(true);
+    setTestError('');
+    setTestSuccess('');
+    try {
+      const res = await adminSettingsService.sendTestEmail({
+        email: testEmail.trim() || undefined,
+      });
+      setTestSuccess(res.message || 'Test email sent.');
+    } catch (err) {
+      setTestError(normalizeError(err).message);
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -502,6 +525,62 @@ export default function AdminSettings() {
                       </>
                     )}
                   </Button>
+                </Form>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Email delivery test */}
+        <Row className="mt-4">
+          <Col>
+            <Card className="shadow-sm">
+              <Card.Body>
+                <h5 className="mb-1 d-flex align-items-center gap-2">
+                  <MailIcon size={20} className="text-success" />
+                  Email Delivery
+                </h5>
+                <p className="text-muted small mb-3">
+                  Confirm replies to customer feedback arrive in real inboxes.
+                 
+                </p>
+
+                {testError && <Alert variant="danger">{testError}</Alert>}
+                {testSuccess && <Alert variant="success">{testSuccess}</Alert>}
+
+                <Form onSubmit={handleSendTestEmail}>
+                  <Row className="g-3 align-items-end">
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Recipient email</Form.Label>
+                        <Form.Control
+                          type="email"
+                          value={testEmail}
+                          onChange={(e) => setTestEmail(e.target.value)}
+                          maxLength={190}
+                          placeholder={contactEmail || 'you@example.com'}
+                          disabled={sendingTest}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md="auto">
+                      <Button
+                        type="submit"
+                        variant="success"
+                        disabled={sendingTest || !testEmail.trim()}
+                      >
+                        {sendingTest ? (
+                          <>
+                            <Spinner as="span" animation="border" size="sm" className="me-1" /> Sending...
+                          </>
+                        ) : (
+                          <>
+                            <MailIcon size={16} className="me-1" /> Send Test Email
+                          </>
+                        )}
+                      </Button>
+                    </Col>
+                  </Row>
                 </Form>
               </Card.Body>
             </Card>

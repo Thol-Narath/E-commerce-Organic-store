@@ -40,37 +40,44 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
 
-    // Public catalog (no auth)
-    Route::get('categories', [CategoryController::class, 'index']);
-    Route::get('categories/{category:slug}', [CategoryController::class, 'show']);
-    Route::get('categories/{category:slug}/products', [CategoryController::class, 'products']);
-    Route::get('products/featured', [ProductController::class, 'featured']);
-    Route::get('products', [ProductController::class, 'index']);
-    Route::get('products/{product:slug}', [ProductController::class, 'show']);
+    // Public read-only catalog/content (no auth). Responses carry
+    // Cache-Control + ETag headers so browsers/CDNs can serve repeat requests
+    // without a network round-trip. All these routes are anonymous, so a
+    // shared cache is safe; body hashes (ETag) keep revalidation correct.
+    Route::middleware('cache.headers:public;max_age=300;etag')->group(function () {
+        Route::get('categories', [CategoryController::class, 'index']);
+        Route::get('categories/{category:slug}', [CategoryController::class, 'show']);
+        Route::get('categories/{category:slug}/products', [CategoryController::class, 'products']);
+        Route::get('products/featured', [ProductController::class, 'featured']);
+        Route::get('products', [ProductController::class, 'index']);
+        Route::get('products/{product:slug}', [ProductController::class, 'show']);
 
-    // Public content: banners, testimonials, blogs, newsletter
-    Route::get('banners', [\App\Http\Controllers\Api\V1\BannerController::class, 'index']);
-    Route::get('testimonials', [\App\Http\Controllers\Api\V1\TestimonialController::class, 'index']);
-    Route::get('blogs', [\App\Http\Controllers\Api\V1\BlogController::class, 'index']);
-    Route::get('blogs/{slug}', [\App\Http\Controllers\Api\V1\BlogController::class, 'show']);
+        // Public content: banners, testimonials, blogs
+        Route::get('banners', [\App\Http\Controllers\Api\V1\BannerController::class, 'index']);
+        Route::get('testimonials', [\App\Http\Controllers\Api\V1\TestimonialController::class, 'index']);
+        Route::get('blogs', [\App\Http\Controllers\Api\V1\BlogController::class, 'index']);
+        Route::get('blogs/{slug}', [\App\Http\Controllers\Api\V1\BlogController::class, 'show']);
+
+        // Public stats (active product/category counts)
+        Route::get('stats', [\App\Http\Controllers\Api\V1\SettingsController::class, 'stats']);
+
+        // Public store information used by the checkout summary (display only).
+        Route::get('settings/public', [SettingsController::class, 'publicSettings']);
+
+        // Public payment information (Phase 8).
+        Route::get('payment-methods', [PaymentMethodController::class, 'index']);
+    });
+
+    // Public shipping methods: intentionally NOT cached (app-level or HTTP) so
+    // an admin enabling/disabling a method takes effect immediately at checkout.
+    Route::get('shipping-methods', [ShippingMethodController::class, 'index']);
+
+    // Public mutations stay uncached.
     Route::post('newsletter/subscribe', [\App\Http\Controllers\Api\V1\NewsletterController::class, 'subscribe']);
 
     // Public contact form submissions (rate-limited to guard against spam).
     Route::post('contact', [\App\Http\Controllers\Api\V1\ContactController::class, 'store'])
         ->middleware('throttle:5,1');
-
-    // Public stats (active product/category counts)
-    Route::get('stats', [\App\Http\Controllers\Api\V1\SettingsController::class, 'stats']);
-
-    // Public store information used by the checkout summary (display only).
-    Route::get('settings/public', [SettingsController::class, 'publicSettings']);
-
-    // Public payment information (Phase 8).
-    Route::get('payment-methods', [PaymentMethodController::class, 'index']);
-
-    // Public shipping methods offered at checkout (display + selection only;
-    // the fee is always recomputed server-side when the order is placed).
-    Route::get('shipping-methods', [ShippingMethodController::class, 'index']);
 
     // PayWay callback — public by design, protected by HMAC signature.
     Route::post('payments/payway/webhook', [PayWayWebhookController::class, 'handle']);
@@ -257,6 +264,11 @@ Route::prefix('v1')->group(function () {
 
             // Store contact details (admin only): address, phone, email.
             Route::put('settings/contact', [SettingsController::class, 'updateContact']);
+
+            // Email delivery test (admin only): verifies SMTP sends a real
+            // message. Rate-limited to avoid sending spam.
+            Route::post('settings/test-email', [SettingsController::class, 'sendTestEmail'])
+                ->middleware('throttle:3,1');
 
             // Customer contact inbox (admin only).
             Route::get('contact-messages', [AdminContactController::class, 'index']);
