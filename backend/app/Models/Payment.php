@@ -43,16 +43,26 @@ class Payment extends Model
     /**
      * Whether a status poll should re-verify this attempt against its gateway.
      *
-     * Only pull-based gateways need this: Bakong has no webhook, so the paid
-     * state can only be learned by asking Bakong. The attempt must still be
-     * pending (not expired), and the QR md5 must be known to look it up.
+     * Bakong has no webhook, so the paid state can only be learned by asking
+     * Bakong; the attempt must still be pending (not expired) and the QR md5
+     * must be known to look it up. PayWay attempts are reconciled from the
+     * payment page too (as a safety net when the webhook is missed), but only
+     * when backend transaction verification is enabled.
      */
     public function shouldReconcileOnStatus(): bool
     {
-        return $this->gateway === 'bakong'
-            && $this->payment_status === PaymentStatus::Pending->value
-            && ! empty($this->gateway_transaction_id)
-            && $this->expires_at !== null
-            && $this->expires_at->isFuture();
+        if ($this->payment_status !== PaymentStatus::Pending->value || empty($this->gateway_transaction_id)) {
+            return false;
+        }
+
+        if ($this->gateway === 'bakong') {
+            return $this->expires_at !== null && $this->expires_at->isFuture();
+        }
+
+        if ($this->gateway === 'payway') {
+            return (bool) config('payway.verify_transaction', false);
+        }
+
+        return false;
     }
 }

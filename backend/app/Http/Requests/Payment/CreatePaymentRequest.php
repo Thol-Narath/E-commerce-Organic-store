@@ -16,28 +16,15 @@ class CreatePaymentRequest extends FormRequest
     }
 
     /**
-     * Only the online gateway methods are accepted here, plus an optional
-     * currency choice (USD or KHR). The payment amount is NEVER accepted from
-     * the client — it always comes from the stored order total (converted
-     * server-side using the store's configured KHR rate). Enabled/disabled
-     * flags are enforced server-side by the PaymentService.
+     * Only the online gateway methods are accepted here. The payment amount is
+     * NEVER accepted from the client — it always comes from the stored order
+     * total, always in USD (the store's only accepted currency). Enabled/
+     * disabled flags are enforced server-side by the PaymentService.
      */
     public function rules(): array
     {
         return [
             'payment_method' => ['required', 'string', Rule::in(['aba_pay', 'khqr', 'card', 'bakong'])],
-            'currency' => ['sometimes', 'string', Rule::in(['USD', 'KHR'])],
         ];
-    }
-
-    /**
-     * Normalize the client currency to uppercase (e.g. `usd`) so the service
-     * can safely compare against the supported set.
-     */
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('currency')) {
-            $this->merge(['currency' => strtoupper((string) $this->input('currency'))]);
-        }
     }
 }

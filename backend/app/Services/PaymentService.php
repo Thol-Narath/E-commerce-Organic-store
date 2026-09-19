@@ -76,57 +76,11 @@ class PaymentService
     }
 
     /**
-     * The currencies a customer may pay in, with the display symbol and the
-     * server-side USD→KHR reference rate used to convert a payment amount.
-     * Amounts are always converted on the backend — never by the client.
+     * Format an amount as a USD payment string (two decimals, no grouping).
      */
-    public function currencies(): array
+    public function amountString(float $amount): string
     {
-        return [
-            ['code' => 'USD', 'symbol' => '$', 'rate' => (float) 1],
-            ['code' => 'KHR', 'symbol' => '៛', 'rate' => $this->khrRate()],
-        ];
-    }
-
-    /**
-     * The server-side USD→KHR exchange rate used for payment attempts.
-     */
-    public function khrRate(): float
-    {
-        return max(1, (float) config('store.khr_exchange_rate', 4100));
-    }
-
-    /**
-     * Resolve the currency a payment attempt is made in.
-     *
-     * A client-supplied USD/KHR choice wins; otherwise the gateway-configured
-     * default is used. Anything outside the supported set falls back to USD.
-     */
-    private function resolveCurrency(?string $requested, PaymentMethod $enum): string
-    {
-        $requested = strtoupper(trim((string) $requested));
-
-        if (! in_array($requested, ['USD', 'KHR'], true)) {
-            $requested = $enum->isBakong()
-                ? strtoupper((string) config('bakong.currency', 'USD'))
-                : strtoupper((string) config('payway.currency', 'USD'));
-        }
-
-        return in_array($requested, ['USD', 'KHR'], true) ? $requested : 'USD';
-    }
-
-    /**
-     * Convert an order total (stored in the base currency) into the payment
-     * currency. KHR has no minor units, so converted amounts are rounded to a
-     * whole riel using the store's exchange rate.
-     */
-    public function convertAmount(float $baseAmount, string $currency): string
-    {
-        if (strtoupper($currency) === 'KHR') {
-            return (string) (int) round($baseAmount * $this->khrRate());
-        }
-
-        return number_format($baseAmount, 2, '.', '');
+        return number_format($amount, 2, '.', '');
     }
 
     public function isMethodEnabled(string $method): bool
@@ -161,12 +115,13 @@ class PaymentService
     }
 
     /**
-     * Create a payment attempt against a payment gateway.
+     * Create a payment attempt against a payment gateway. All payment attempts
+     * are made in USD, the store's only accepted currency.
      *
      * @throws PaymentException     for business-rule violations
      * @throws PaymentGatewayException when the gateway refuses/unavailable
      */
-    public function createPayment(User $user, Order $order, string $paymentMethod, ?string $currency = null): Payment
+    public function createPayment(User $user, Order $order, string $paymentMethod): Payment
     {
         $enum = PaymentMethod::tryFrom($paymentMethod);
 
@@ -196,8 +151,8 @@ class PaymentService
             throw new PaymentException('The order total must be greater than zero.', 422);
         }
 
-        $currency = $this->resolveCurrency($currency, $enum);
-        $amount = $this->convertAmount($baseAmount, $currency);
+        $currency = 'USD';
+        $amount = $this->amountString($baseAmount);
 
         $lifetime = $enum->isBakong()
             ? max(3, (int) config('bakong.lifetime', 15))
@@ -275,19 +230,21 @@ class PaymentService
      * The data the payment page needs without hitting the gateway:
      * order state + latest attempt (QR / deeplink / hosted checkout link).
      *
-     * For Bakong attempts this also re-verifies the transaction server-side
-     * (throttled) so React's polling can auto-detect a completed scan without
-     * relying on the scheduler. PayWay attempts stay a cheap DB read — their
-     * confirmation comes from the HMAC webhook + manual/scheduled refresh.
+     * While the customer is on the payment page this also re-verifies the
+     * pending attempt against its gateway (with the short interactive cooldown)
+     * so React's polling can auto-detect a completed payment within seconds —
+     * Bakong has no webhook and PayWay's webhook can be missed.
      */
     public function statusData(Order $order): array
     {
         $payment = $this->latestPayment($order);
 
         if ($payment?->shouldReconcileOnStatus()) {
-            $this->verifyBakongIfDue($payment);
+            $this->verifyIfDue($payment, true);
 
-            // Re-read so the response reflects the verification result.
+            // Re-read so the response reflects the verification result: both
+            // the attempt and the order may have changed within confirmPayment.
+            $order->refresh();
             $payment = $this->latestPayment($order);
         }
 
@@ -300,20 +257,20 @@ class PaymentService
     }
 
     /**
-     * Re-verify a pending Bakong attempt against the Bakong Open API.
+     * Re-verify a pending attempt against its gateway.
      *
-     * The throttle lives inside refreshBakong() (not here) so that every
+     * The cooldown lives inside refresh()/refreshBakong() so that every
      * verification path — SPA status polling, the manual "Check payment
      * status" button, and the periodic scheduler job — honours the same
      * per-attempt cooldown. A transient gateway error is not fatal: the
      * attempt stays pending and the next run retries it.
      */
-    private function verifyBakongIfDue(Payment $payment): void
+    private function verifyIfDue(Payment $payment, bool $interactive = false): void
     {
         try {
-            $this->refresh($payment);
+            $this->refresh($payment, $interactive);
         } catch (PaymentGatewayException $e) {
-            Log::warning('Bakong verification failed on status poll', [
+            Log::warning('Gateway verification failed on status poll', [
                 'payment_id' => $payment->id,
                 'gateway_code' => $e->gatewayCode(),
             ]);
@@ -398,20 +355,39 @@ class PaymentService
      *
      * PayWay: check-transaction-2 endpoint.
      * Bakong: check_transaction_by_md5 endpoint.
+     *
+     * When $interactive is true (the SPA payment page or the manual "Check
+     * payment status" button) a short per-attempt cooldown applies so a
+     * completed payment is confirmed within seconds. Background calls (the
+     * scheduler, the PayWay webhook's independent verification) pass false and
+     * keep the longer, quota-safe cooldown for Bakong and no cooldown for
+     * PayWay.
      */
-    public function refresh(Payment $payment): Payment
+    public function refresh(Payment $payment, bool $interactive = false): Payment
     {
         if ($payment->payment_status !== PaymentStatus::Pending->value) {
             return $payment;
         }
 
         if ($payment->gateway === 'bakong') {
-            return $this->refreshBakong($payment);
+            return $this->refreshBakong($payment, $interactive);
         }
 
         // PayWay gateway
         if (! $payment->gateway_transaction_id) {
             return $payment;
+        }
+
+        // Interactive polling is cooldown-gated so hot status polls do not
+        // hammer check-transaction; background/webhook calls are never gated.
+        if ($interactive) {
+            $interactiveKey = 'payway.verify.interactive:'.$payment->id;
+
+            if (Cache::has($interactiveKey)) {
+                return $payment;
+            }
+
+            Cache::put($interactiveKey, true, $this->interactiveVerifyThrottleSeconds());
         }
 
         try {
@@ -444,27 +420,30 @@ class PaymentService
      * Check a Bakong payment via the check_transaction_by_md5 endpoint.
      *
      * Throttled per attempt so the same pending payment is not re-checked more
-     * often than config('bakong.verify_throttle') seconds — regardless of who
-     * asked (poll, button, scheduler), because every Bakong API call counts
-     * against the account's 100-requests/day limit.
+     * often than the configured cooldown. Interactive calls (SPA polling /
+     * manual check) use a short cooldown (seconds) so a completed scan is
+     * confirmed quickly; background calls (the scheduler) keep the long
+     * cooldown because every Bakong API call counts against the account's
+     * 100-requests/day limit.
      */
-    private function refreshBakong(Payment $payment): Payment
+    private function refreshBakong(Payment $payment, bool $interactive = false): Payment
     {
         if (! $payment->gateway_transaction_id) {
             return $payment;
         }
 
-        $throttleKey = 'bakong.verify:'.$payment->id;
+        $throttleKey = $interactive
+            ? 'bakong.verify.interactive:'.$payment->id
+            : 'bakong.verify:'.$payment->id;
+        $throttleSeconds = $interactive
+            ? $this->interactiveVerifyThrottleSeconds()
+            : max(15, (int) config('bakong.verify_throttle', self::BAKONG_VERIFY_THROTTLE_SECONDS));
 
         if (Cache::has($throttleKey)) {
             return $payment;
         }
 
-        Cache::put(
-            $throttleKey,
-            true,
-            max(15, (int) config('bakong.verify_throttle', self::BAKONG_VERIFY_THROTTLE_SECONDS))
-        );
+        Cache::put($throttleKey, true, $throttleSeconds);
 
         try {
             $result = $this->bakong->checkTransaction($payment->gateway_transaction_id);
@@ -491,6 +470,16 @@ class PaymentService
         }
 
         return $payment;
+    }
+
+    /**
+     * Cooldown (seconds) applied to interactive verification from the payment
+     * page, so a completed payment is confirmed without waiting for the far
+     * more conservative background/API-quota cooldown.
+     */
+    private function interactiveVerifyThrottleSeconds(): int
+    {
+        return max(10, (int) config('bakong.verify_throttle_interactive', 20));
     }
 
     /**
@@ -583,14 +572,14 @@ class PaymentService
             'lastname' => $nameParts[1] ?? '',
             'email' => (string) $user->email,
             'phone' => (string) ($user->phone ?: ($snapshot['recipient_phone'] ?? '')),
-            'items' => $order->items->map(function ($item) use ($payment) {
+            'items' => $order->items->map(function ($item) {
                 return [
                     'name' => $item->product_name,
                     'quantity' => $item->quantity,
-                    'price' => (float) $this->convertAmount((float) $item->unit_price, $payment->currency),
+                    'price' => (float) $this->amountString((float) $item->unit_price),
                 ];
             })->values()->all(),
-            'shipping' => (float) $this->convertAmount((float) $order->shipping_fee, $payment->currency),
+            'shipping' => (float) $this->amountString((float) $order->shipping_fee),
             'return_url' => $this->payWay->absoluteUrl((string) config('payway.callback_url')),
             'cancel_url' => $this->payWay->absoluteUrl('/payment/'.$order->order_number.'?status=cancelled'),
             'continue_success_url' => $this->payWay->absoluteUrl((string) config('payway.return_url')),

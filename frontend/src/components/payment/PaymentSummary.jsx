@@ -3,11 +3,10 @@ import OrderStatusBadge from '../orders/OrderStatusBadge';
 import { formatAmount } from '../../utils/format';
 
 /**
- * Right-hand panel on the payment page: always shows the order number and
- * amount due (in the payment currency); once an attempt exists it also shows
- * method + attempt status.
+ * Right-hand panel on the payment page: always shows the order number and the
+ * amount due in USD; once an attempt exists it also shows method + status.
  */
-export default function PaymentSummary({ orderNumber, amount, payment = null, currency = 'USD' }) {
+export default function PaymentSummary({ orderNumber, amount, payment = null }) {
   return (
     <Card className="shadow-sm">
       <Card.Body>
@@ -23,11 +22,11 @@ export default function PaymentSummary({ orderNumber, amount, payment = null, cu
           </div>
           <div className="d-flex justify-content-between mb-2">
             <dt className="text-muted fw-normal">Amount due</dt>
-            <dd className="mb-0 fw-bold">{amount ? formatAmount(amount, currency) : '—'}</dd>
+            <dd className="mb-0 fw-bold">{amount ? formatAmount(amount) : '—'}</dd>
           </div>
           <div className="d-flex justify-content-between mb-2">
             <dt className="text-muted fw-normal">Currency</dt>
-            <dd className="mb-0">{currency === 'KHR' ? 'KHR (៛)' : 'USD ($)'}</dd>
+            <dd className="mb-0">USD ($)</dd>
           </div>
           {payment?.payment_method_label && (
             <div className="d-flex justify-content-between mb-2">

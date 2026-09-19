@@ -55,15 +55,11 @@ class PaymentApiTest extends TestCase
             ->assertJsonPath('data.methods.0.method', 'aba_pay');
     }
 
-    public function test_payment_methods_expose_supported_currencies(): void
+    public function test_payment_methods_no_longer_expose_currencies(): void
     {
         $this->getJson('/api/v1/payment-methods')
             ->assertStatus(200)
-            ->assertJsonPath('data.currencies.0.code', 'USD')
-            ->assertJsonPath('data.currencies.0.symbol', '$')
-            ->assertJsonPath('data.currencies.0.rate', 1)
-            ->assertJsonPath('data.currencies.1.code', 'KHR')
-            ->assertJsonPath('data.currencies.1.symbol', '៛');
+            ->assertJsonPath('data.currencies', null);
     }
 
     public function test_bakong_method_listed_when_configured_and_enabled(): void
@@ -289,19 +285,6 @@ class PaymentApiTest extends TestCase
             ->assertStatus(422);
     }
 
-    public function test_create_payment_rejects_unsupported_currency(): void
-    {
-        Http::preventStrayRequests();
-        $token = $this->login($this->customer());
-        $order = $this->pendingOrder($token);
-
-        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", [
-            'payment_method' => 'aba_pay',
-            'currency' => 'EUR',
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors(['currency'], 'data');
-    }
-
     public function test_create_payment_for_unknown_order_returns_404(): void
     {
         $token = $this->login($this->customer());
@@ -431,94 +414,6 @@ public function test_gateway_unavailable_returns_502_and_payment_is_marked_faile
             ->assertJsonPath('data.qr_string', '00020101021230510016abaakhppxxx');
     }
 
-    public function test_aba_pay_attempt_in_khr_converts_amount_and_uses_khr_currency(): void
-    {
-        config(['store.khr_exchange_rate' => 4000]);
-
-        Http::fake([
-            'https://checkout-sandbox.payway.com.kh/*' => Http::response([
-                'status' => ['code' => '00', 'message' => 'Success!', 'tran_id' => 'PYKHR1'],
-                'qr_string' => '00020101021230510016abaakhppxxx',
-                'abapay_deeplink' => 'abamobilebank://ababank.com?type=payway&qrcode=0002',
-            ]),
-        ]);
-
-        $token = $this->login($this->customer());
-        $order = $this->pendingOrder($token);
-        $expected = (int) round((float) $order->total * 4000);
-
-        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", [
-            'payment_method' => 'aba_pay',
-            'currency' => 'KHR',
-        ])->assertStatus(201)
-            ->assertJsonPath('data.payment_method', 'aba_pay')
-            ->assertJsonPath('data.payment_status', 'pending')
-            ->assertJsonPath('data.currency', 'KHR')
-            ->assertJsonPath('data.amount', $this->formatted((float) $expected));
-
-        $this->assertDatabaseHas('payments', [
-            'order_id' => $order->id,
-            'payment_method' => 'aba_pay',
-            'currency' => 'KHR',
-            'amount' => (string) $expected,
-        ]);
-
-        Http::assertSent(function (Request $request) use ($expected) {
-            $body = (string) $request->body();
-            $amount = $this->multipartField($body, 'amount');
-            $currency = $this->multipartField($body, 'currency');
-
-            if (! str_contains($request->url(), '/payments/purchase')) {
-                return false;
-            }
-
-            $this->assertSame('KHR', $currency);
-            $this->assertSame($this->formatted((float) $expected), $amount);
-
-            $items = json_decode(base64_decode($this->multipartField($body, 'items')), true);
-            $this->assertIsArray($items);
-            $this->assertNotEmpty($items);
-            $this->assertSame(100000, (int) $items[0]['price']);
-            $this->assertSame('8000.00', $this->multipartField($body, 'shipping'));
-
-            return true;
-        });
-    }
-
-    public function test_bakong_attempt_in_khr_uses_khr_qr_and_converted_amount(): void
-    {
-        $this->enableBakong();
-        config(['store.khr_exchange_rate' => 4100]);
-
-        Http::fake([
-            'https://api-bakong.nbc.gov.kh/*/generate_deeplink_by_qr*' => Http::response([
-                'responseCode' => 0,
-                'responseMessage' => 'Success',
-                'data' => ['deeplink' => 'bakong://payment?ref=khr'],
-            ]),
-            'https://api-bakong.nbc.gov.kh/*' => Http::response([], 500),
-        ]);
-
-        $token = $this->login($this->customer());
-        $order = $this->pendingOrder($token);
-        $expected = (int) round((float) $order->total * 4100);
-
-        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", [
-            'payment_method' => 'bakong',
-            'currency' => 'KHR',
-        ])->assertStatus(201)
-            ->assertJsonPath('data.payment_method', 'bakong')
-            ->assertJsonPath('data.currency', 'KHR')
-            ->assertJsonPath('data.amount', $this->formatted((float) $expected));
-
-        $payment = Payment::where('order_id', $order->id)->firstOrFail();
-        $this->assertSame('KHR', $payment->currency);
-        $this->assertSame($this->formatted((float) $expected), (string) $payment->amount);
-        $this->assertStringStartsWith('000201', $payment->qr_string);
-        $this->assertStringContainsString('5303116', $payment->qr_string);
-        $this->assertSame(md5($payment->qr_string), $payment->gateway_transaction_id);
-    }
-
     public function test_card_attempt_exposes_signed_checkout_url_but_not_html(): void
     {
         Http::fake([
@@ -642,9 +537,13 @@ public function test_gateway_unavailable_returns_502_and_payment_is_marked_faile
     public function test_payment_status_returns_order_and_latest_payment(): void
     {
         Http::fake([
-            'https://checkout-sandbox.payway.com.kh/*' => Http::response([
+            'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase*' => Http::response([
                 'status' => ['code' => '00', 'message' => 'Success!', 'tran_id' => 'PY123'],
                 'qr_string' => 'QR',
+            ]),
+            'https://checkout-sandbox.payway.com.kh/*' => Http::response([
+                'status' => ['code' => '00', 'message' => 'Success!', 'tran_id' => 'PY123'],
+                'data' => ['payment_status_code' => 2, 'payment_status' => 'PENDING'],
             ]),
         ]);
 
@@ -677,6 +576,75 @@ public function test_gateway_unavailable_returns_502_and_payment_is_marked_faile
 
         $this->withToken($token)->getJson("/api/v1/orders/{$order->order_number}/payment-status")
             ->assertJsonPath('data.payment', null);
+    }
+
+    public function test_payment_status_auto_confirms_paid_bakong_transaction(): void
+    {
+        $this->enableBakong();
+
+        $token = $this->login($this->customer());
+        $order = $this->pendingOrder($token);
+
+        Http::fake([
+            'https://api-bakong.nbc.gov.kh/*/generate_deeplink_by_qr*' => Http::response([
+                'responseCode' => 0,
+                'responseMessage' => 'Success',
+                'data' => ['deeplink' => 'bakong://payment?ref=auto'],
+            ]),
+            'https://api-bakong.nbc.gov.kh/*/check_transaction_by_md5*' => Http::response([
+                'responseCode' => 0,
+                'responseMessage' => 'Success',
+                'data' => [
+                    'hash' => 'paid-hash',
+                    'toAccountId' => 'merchant@aclb',
+                    'currency' => 'USD',
+                    'amount' => (float) $order->total,
+                ],
+            ]),
+        ]);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'bakong'])
+            ->assertStatus(201);
+
+        // No manual refresh needed: a plain status poll must detect the paid
+        // transaction via the short interactive cooldown.
+        $this->withToken($token)->getJson("/api/v1/orders/{$order->order_number}/payment-status")
+            ->assertStatus(200)
+            ->assertJsonPath('data.order_payment_status', 'paid')
+            ->assertJsonPath('data.order_status', 'confirmed')
+            ->assertJsonPath('data.payment.payment_status', 'paid');
+    }
+
+    public function test_payment_status_auto_confirms_paid_payway_transaction(): void
+    {
+        $token = $this->login($this->customer());
+        $order = $this->pendingOrder($token);
+
+        Http::fake([
+            'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase*' => Http::response([
+                'status' => ['code' => '00', 'message' => 'Success!', 'tran_id' => 'PYAUTO'],
+                'qr_string' => '00020101021230510016abaakhppxxx',
+            ]),
+            'https://checkout-sandbox.payway.com.kh/*' => Http::response([
+                'status' => ['code' => '00', 'message' => 'Success!', 'tran_id' => 'PYAUTO'],
+                'data' => [
+                    'payment_status_code' => 0,
+                    'payment_status' => 'APPROVED',
+                    'total_amount' => $order->total,
+                    'payment_currency' => 'USD',
+                    'apv' => '753786',
+                ],
+            ]),
+        ]);
+
+        $this->withToken($token)->postJson("/api/v1/orders/{$order->order_number}/payments", ['payment_method' => 'aba_pay'])
+            ->assertStatus(201);
+
+        $this->withToken($token)->getJson("/api/v1/orders/{$order->order_number}/payment-status")
+            ->assertStatus(200)
+            ->assertJsonPath('data.order_payment_status', 'paid')
+            ->assertJsonPath('data.order_status', 'confirmed')
+            ->assertJsonPath('data.payment.payment_status', 'paid');
     }
 
     // ------------------------------------------------------------------

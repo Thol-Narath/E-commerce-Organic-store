@@ -7,18 +7,11 @@ export function formatPrice(value) {
 }
 
 /**
- * Format a numeric value in the given currency. Supports the two currencies
- * the store accepts: USD ($) and KHR (Cambodian Riel, ៛). KHR is rendered as
- * a whole number of riel.
+ * Format a numeric value as a currency string. The store only accepts USD.
  */
-export function formatAmount(value, currency = 'USD') {
+export function formatAmount(value) {
   const number = Number(value);
   if (Number.isNaN(number)) return '—';
-
-  if (currency === 'KHR') {
-    const riel = Math.round(number);
-    return `${new Intl.NumberFormat('en-US').format(riel)} ៛`;
-  }
 
   return new Intl.NumberFormat('en-US', {
     style: 'currency',

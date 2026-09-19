@@ -27,7 +27,6 @@ class PaymentMethodController extends Controller
             CacheService::TTL_LONG,
             fn () => [
                 'methods' => $this->paymentService->methods(),
-                'currencies' => $this->paymentService->currencies(),
             ]
         );
 

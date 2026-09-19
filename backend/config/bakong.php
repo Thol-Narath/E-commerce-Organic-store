@@ -49,4 +49,13 @@ return [
     | quota within minutes. 300s keeps one payment attempt at ~4 checks.
     */
     'verify_throttle' => (int) env('BAKONG_VERIFY_THROTTLE_SECONDS', 300),
+
+    /*
+    | Cooldown used while the customer is actually on the payment page (SPA
+    | status polling and the manual "Check payment status" button). It stays
+    | small so a completed scan is confirmed within seconds, while the long
+    | verify_throttle above still protects the daily quota for background
+    | scheduler runs.
+    */
+    'verify_throttle_interactive' => (int) env('BAKONG_VERIFY_THROTTLE_INTERACTIVE_SECONDS', 20),
 ];

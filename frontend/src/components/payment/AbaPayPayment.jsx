@@ -24,7 +24,6 @@ export default function AbaPayPayment({ payment, onRetry }) {
         value={payment?.qr_string}
         caption="Scan with ABA Mobile"
         onRetry={onRetry}
-        currency={payment?.currency}
       />
 
       {payment?.deeplink && (

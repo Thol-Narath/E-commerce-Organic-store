@@ -22,7 +22,6 @@ export default function KhqrPayment({ payment, onRetry }) {
         value={payment?.qr_string}
         caption="Open your banking app and scan this KHQR"
         onRetry={onRetry}
-        currency={payment?.currency}
       />
 
       <p className="payment-apps mb-0 mt-3">ABA &bull; Bakong &bull; ACLEDA &bull; KHQR</p>

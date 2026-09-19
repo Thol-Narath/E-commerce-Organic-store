@@ -40,7 +40,6 @@ class PaymentController extends Controller
                 $request->user(),
                 $order,
                 $request->input('payment_method'),
-                $request->input('currency'),
             );
         } catch (PaymentException $e) {
             return $this->error($e->getMessage(), null, $e->responseStatus());
@@ -99,7 +98,7 @@ class PaymentController extends Controller
         }
 
         try {
-            $payment = $this->paymentService->refresh($payment);
+            $payment = $this->paymentService->refresh($payment, true);
         } catch (PaymentGatewayException) {
             return $this->error('The payment gateway is unavailable. Please try again later.', null, 502);
         }
