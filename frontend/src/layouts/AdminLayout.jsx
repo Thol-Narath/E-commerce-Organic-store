@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Nav } from 'react-bootstrap';
-import { StoreIcon, TagIcon, TruckIcon, LeafIcon, BoxesIcon, ExternalLinkIcon, ImageIcon, SettingsIcon, FactoryIcon, MailIcon } from '../assets/icons';
+import { StoreIcon, TagIcon, TruckIcon, LeafIcon, BoxesIcon, ExternalLinkIcon, ImageIcon, SettingsIcon, FactoryIcon, MailIcon, MenuIcon, XIcon } from '../assets/icons';
 import { settingsService } from '../services/settingsService';
 
 /**
- * Admin section shell. Renders a responsive sidebar (horizontal scroll bar on
- * mobile) and the active admin page.
+ * Admin section shell. On mobile it renders a sticky top app bar and turns the
+ * sidebar into a slide-in drawer; on desktop it keeps a fixed left rail.
  */
 export default function AdminLayout() {
   const { pathname } = useLocation();
   const [logo, setLogo] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Re-fetch logo on every navigation so edits in Settings are visible immediately.
   useEffect(() => {
@@ -18,6 +19,11 @@ export default function AdminLayout() {
       .publicSettings()
       .then((data) => setLogo(data?.store?.logo || null))
       .catch(() => {});
+  }, [pathname]);
+
+  // Close the mobile drawer whenever the route changes.
+  useEffect(() => {
+    setSidebarOpen(false);
   }, [pathname]);
 
   const links = [
@@ -35,7 +41,40 @@ export default function AdminLayout() {
 
   return (
     <div className="admin-shell">
-      <div className="admin-sidebar d-md-flex flex-md-column flex-shrink-0 p-3">
+      {/* Mobile app bar */}
+      <div className="admin-topbar d-md-none">
+        <button
+          type="button"
+          className="admin-topbar-toggle"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open menu"
+        >
+          <MenuIcon size={20} />
+        </button>
+        <div className="admin-topbar-brand">
+          {logo ? (
+            <img src={logo} alt="Store logo" className="admin-brand-logo" />
+          ) : (
+            <LeafIcon size={20} className="text-success" />
+          )}
+          <span className="fw-semibold">Organic Admin</span>
+        </div>
+      </div>
+
+      {/* Backdrop behind the mobile drawer */}
+      {sidebarOpen && (
+        <div className="admin-sidebar-backdrop d-md-none" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <div className={`admin-sidebar d-md-flex flex-md-column flex-shrink-0 p-3 ${sidebarOpen ? 'open' : ''}`}>
+        <button
+          type="button"
+          className="admin-sidebar-close d-md-none"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close menu"
+        >
+          <XIcon size={20} />
+        </button>
         <div className="admin-brand">
           {logo ? (
             <img
@@ -56,7 +95,7 @@ export default function AdminLayout() {
           <ExternalLinkIcon size={16} />
           <span>View Store</span>
         </Link>
-        <Nav className="flex-md-column flex-row flex-nowrap overflow-auto admin-nav gap-1" activeKey={pathname}>
+        <Nav className="flex-column flex-nowrap overflow-auto admin-nav gap-1" activeKey={pathname}>
           {links.map(({ to, label, icon: Icon, match }) => (
             <Nav.Item key={to}>
               <Nav.Link as={Link} to={to} className={match(pathname) ? 'active' : ''}>

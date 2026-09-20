@@ -49,7 +49,6 @@ class AdminSupplierController extends Controller
         }
 
         $paginator = $query->paginate($this->perPage($request, 15))->withQueryString();
-
         return $this->success([
             'items' => SupplierResource::collection($paginator->items()),
             'pagination' => $this->pagination($paginator),

@@ -1644,6 +1644,15 @@ a:hover {
   color: var(--organic-green);
 }
 
+.product-card-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+  min-height: 2.6em;
+}
+
 .product-card-title a:hover {
   color: var(--organic-green-dark);
 }
@@ -3071,12 +3080,93 @@ a.footer-contact-mail:hover {
   min-height: 100vh;
 }
 
-.admin-sidebar {
-  background: var(--organic-bg-soft);
-  border-bottom: 1px solid var(--organic-border);
+/* Mobile top app bar */
+.admin-topbar {
   position: sticky;
   top: 0;
   z-index: 1020;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--organic-bg-soft);
+  border-bottom: 1px solid var(--organic-border);
+}
+
+.admin-topbar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--organic-border);
+  border-radius: 0.6rem;
+  background: #fff;
+  color: var(--organic-green-dark);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.admin-topbar-toggle:hover {
+  background: rgba(46, 125, 50, 0.08);
+  border-color: #6fbf73;
+}
+
+.admin-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #43534a;
+}
+
+/* Mobile off-canvas sidebar (below md) */
+.admin-sidebar {
+  background: var(--organic-bg-soft);
+  border-right: 1px solid var(--organic-border);
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 260px;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 1031;
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition: transform 0.28s ease, visibility 0.28s ease;
+}
+
+.admin-sidebar.open {
+  transform: translateX(0);
+  visibility: visible;
+}
+
+.admin-sidebar-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--organic-border);
+  border-radius: 0.6rem;
+  background: #fff;
+  color: #43534a;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.admin-sidebar-close:hover {
+  background: rgba(46, 125, 50, 0.08);
+  color: var(--organic-green-dark);
+}
+
+.admin-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1030;
+  background: rgba(0, 0, 0, 0.45);
 }
 
 .admin-brand {
@@ -3164,6 +3254,8 @@ a.footer-contact-mail:hover {
     overflow-y: auto;
     border-bottom: 0;
     border-right: 1px solid var(--organic-border);
+    transform: none;
+    visibility: visible;
   }
 
   .admin-content {
@@ -4937,9 +5029,28 @@ a.footer-contact-mail:hover {
   background: var(--dark-bg);
 }
 
-[data-theme='dark'] .admin-sidebar {
+[data-theme='dark'] .admin-sidebar,
+[data-theme='dark'] .admin-topbar {
   background: var(--dark-surface);
   border-color: var(--dark-border);
+}
+
+[data-theme='dark'] .admin-topbar-brand {
+  color: var(--dark-text);
+}
+
+[data-theme='dark'] .admin-topbar-toggle,
+[data-theme='dark'] .admin-sidebar-close {
+  background: var(--dark-surface-2);
+  border-color: var(--dark-border);
+  color: var(--dark-text);
+}
+
+[data-theme='dark'] .admin-topbar-toggle:hover,
+[data-theme='dark'] .admin-sidebar-close:hover {
+  background: var(--dark-hover);
+  border-color: rgba(22, 163, 74, 0.45);
+  color: #4ade80;
 }
 
 [data-theme='dark'] .admin-nav .nav-link {
@@ -7357,6 +7468,89 @@ body {
 
 .qty-stepper {
   border-radius: 0.7rem;
+}
+
+/* ---------- Responsive product/card polish (mobile) ---------- */
+@media (max-width: 575.98px) {
+  /* Stop price rows from overflowing narrow 2-up columns */
+  .product-card-price,
+  .home-product-price {
+    flex-wrap: wrap;
+    gap: 0.5rem 0.4rem;
+  }
+
+  .product-card {
+    border-radius: 0.85rem;
+  }
+
+  .product-card .card-body {
+    padding: 0.85rem;
+  }
+
+  .product-card-category {
+    font-size: 0.7rem;
+  }
+
+  .product-card-title {
+    font-size: 0.9rem;
+  }
+
+  .product-card-actions {
+    padding: 0.65rem;
+    gap: 0.4rem;
+  }
+
+  .product-card-actions > .d-flex {
+    flex-wrap: wrap;
+  }
+
+  .product-card-actions .btn-success {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    white-space: nowrap;
+  }
+
+  .product-card-actions .wishlist-toggle {
+    width: 36px;
+  }
+
+  /* Home product card */
+  .home-product-card-body {
+    padding: 0.75rem;
+  }
+
+  .home-product-name {
+    font-size: 0.8125rem;
+  }
+
+  .home-product-actions {
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .home-product-add-btn {
+    min-width: 0;
+  }
+
+  .qty-stepper .qty-btn,
+  .qty-value {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+@media (max-width: 374.98px) {
+  .product-card-title {
+    font-size: 0.85rem;
+  }
+
+  .product-card-actions .btn-success {
+    font-size: 0.78rem;
+  }
+
+  .home-product-add-btn {
+    font-size: 0.7rem;
+  }
 }
 
 /* ---------- Promo banner (green/cream) ---------- */
