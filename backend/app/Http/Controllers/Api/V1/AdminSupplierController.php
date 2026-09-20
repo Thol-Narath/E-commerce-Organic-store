@@ -21,9 +21,6 @@ class AdminSupplierController extends Controller
 
     public function __construct(private readonly SupplierService $supplierService) {}
 
-    /**
-     * GET /api/v1/admin/suppliers — paginated supplier list with search + status filter.
-     */
     public function index(Request $request): JsonResponse
     {
         $query = Supplier::query()
