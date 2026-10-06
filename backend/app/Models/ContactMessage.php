@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
@@ -10,7 +9,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ContactMessage extends Model
 {
     use HasFactory;
-
     protected $fillable = [
         'user_id',
         'name',
@@ -80,4 +78,5 @@ class ContactMessage extends Model
                 ->orWhere('subject', 'like', $like);
         });
     }
+
 }
